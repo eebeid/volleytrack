@@ -57,6 +57,9 @@ export default function Home() {
   const [editingTeamId,   setEditingTeamId]   = useState(null);
   const [editingTeamName, setEditingTeamName] = useState('');
 
+  /* Auto Populate state */
+  const [autoTeamCount,   setAutoTeamCount]   = useState(8);
+
   /* GF Reset */
   const [gfResetInfo, setGfResetInfo] = useState(null);
   /* Match result */
@@ -204,6 +207,27 @@ export default function Home() {
     } catch(e) { showToast(e.message,'error'); }
   };
 
+  const populateDefaultTeams = async () => {
+    try {
+      setSaving(true);
+      const generatedTeams = await apiFetch('/api/teams/populate', {
+        method: 'POST',
+        body: JSON.stringify({ count: autoTeamCount }),
+      });
+      setTeams(generatedTeams.map(t => ({ ...t, stats: emptyStats() })));
+      setTournament(prev => ({
+        ...prev,
+        started: false,
+        bracketJson: null,
+        activeMatchId: null,
+        champion: null,
+        gfResetId: null,
+      }));
+      showToast(`Generated ${autoTeamCount} default teams with rosters!`,'success');
+    } catch(e) { showToast(e.message,'error'); }
+    finally { setSaving(false); }
+  };
+
   const updateTeamAvatar = async (teamId, avatarDataUrl) => {
     try {
       const updated = await apiFetch(`/api/teams/${teamId}`, { method:'PUT', body:JSON.stringify({ avatarDataUrl }) });
@@ -323,14 +347,32 @@ export default function Home() {
         if (t.id === wId) {
           let wPts=0, lPts=0;
           completedMatch.sets.forEach(s => { wPts += wId===completedMatch.team1?s.t1:s.t2; lPts += lId===completedMatch.team1?s.t1:s.t2; });
-          const ns = { ...t.stats, wins:t.stats.wins+1, pointsFor:t.stats.pointsFor+wPts, pointsAgainst:t.stats.pointsAgainst+lPts };
+          const sW = wId === completedMatch.team1 ? completedMatch.setsWon[0] : completedMatch.setsWon[1];
+          const sL = wId === completedMatch.team1 ? completedMatch.setsWon[1] : completedMatch.setsWon[0];
+          const ns = { 
+            ...t.stats, 
+            wins: t.stats.wins + 1, 
+            pointsFor: t.stats.pointsFor + wPts, 
+            pointsAgainst: t.stats.pointsAgainst + lPts,
+            setsWon: t.stats.setsWon + sW,
+            setsLost: t.stats.setsLost + sL
+          };
           saveTeamStats(t.id, ns);
           return { ...t, stats: ns };
         }
         if (t.id === lId) {
           let wPts=0, lPts=0;
           completedMatch.sets.forEach(s => { wPts += wId===completedMatch.team1?s.t1:s.t2; lPts += lId===completedMatch.team1?s.t1:s.t2; });
-          const ns = { ...t.stats, losses:t.stats.losses+1, pointsFor:t.stats.pointsFor+lPts, pointsAgainst:t.stats.pointsAgainst+wPts };
+          const sW = lId === completedMatch.team1 ? completedMatch.setsWon[0] : completedMatch.setsWon[1];
+          const sL = lId === completedMatch.team1 ? completedMatch.setsWon[1] : completedMatch.setsWon[0];
+          const ns = { 
+            ...t.stats, 
+            losses: t.stats.losses + 1, 
+            pointsFor: t.stats.pointsFor + lPts, 
+            pointsAgainst: t.stats.pointsAgainst + wPts,
+            setsWon: t.stats.setsWon + sW,
+            setsLost: t.stats.setsLost + sL
+          };
           saveTeamStats(t.id, ns);
           return { ...t, stats: ns };
         }
@@ -992,6 +1034,42 @@ export default function Home() {
                 )}
               </div>
 
+              {/* Auto Populate Teams & Rosters */}
+              <div className="glass-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--orange)', margin: 0 }}>👥 Auto Populate Teams</h3>
+                <p style={{ fontSize: '.85rem', color: 'var(--text-2)', lineHeight: 1.5, margin: 0 }}>
+                  Instantly generate mock teams with rosters to test layouts or start the tournament immediately.
+                </p>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                  <div className="form-group" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '.5rem' }}>
+                    <label className="form-label" style={{ marginBottom: 0 }}>Number of Teams:</label>
+                    <select 
+                      className="form-input" 
+                      style={{ width: '100px', height: '38px', minHeight: 'auto', padding: '0 .5rem', background: 'rgba(255,255,255,0.04)', color: '#fff', border: '1px solid var(--border)', borderRadius: '6px' }}
+                      value={autoTeamCount}
+                      onChange={e => setAutoTeamCount(parseInt(e.target.value, 10))}
+                    >
+                      {[2, 3, 4, 5, 6, 7, 8].map(n => (
+                        <option key={n} value={n} style={{ background: '#0b1028' }}>{n} Teams</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <button 
+                    className="btn btn-primary" 
+                    disabled={saving}
+                    onClick={() => {
+                      if (window.confirm(`This will delete any existing teams and replace them with ${autoTeamCount} default teams. Do you want to continue?`)) {
+                        populateDefaultTeams();
+                      }
+                    }}
+                  >
+                    {saving ? 'Generating...' : 'Generate Teams & Rosters'}
+                  </button>
+                </div>
+              </div>
+
               {/* Data Actions */}
               <div className="glass-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--red)', margin: 0 }}>⚠️ Danger Zone</h3>
@@ -1233,11 +1311,25 @@ function BracketMatchCard({ m, cls, activeId, onSelect, teams=[] }) {
     );
   };
 
+  const renderSetHistory = () => {
+    if (!m.sets || m.sets.length === 0) return null;
+    const historyStrings = m.sets
+      .filter(s => s.t1 > 0 || s.t2 > 0)
+      .map(s => `${s.t1}-${s.t2}`);
+    if (historyStrings.length === 0) return null;
+    return (
+      <div style={{ fontSize: '.7rem', color: '#94a3b8', padding: '.25rem .7rem', borderTop: '1px solid rgba(255,255,255,0.03)', textAlign: 'center', background: 'rgba(0,0,0,0.12)', fontStyle: 'italic' }}>
+        ({historyStrings.join(', ')})
+      </div>
+    );
+  };
+
   return (
     <div
       className={`b-match ${cls}${isActive?' active-match':''}${m.complete?' done':''}${isBye?' b-match-bye':''}`}
       onClick={canScore?()=>onSelect(m.id):undefined}
       title={canScore?'Click to score this match':''}
+      style={{ overflow: 'hidden' }}
     >
       <div className={`b-team${t1Won?' won':''}${m.complete&&!t1Won?' lost':''}`}>
         <div className="b-label">
@@ -1253,6 +1345,7 @@ function BracketMatchCard({ m, cls, activeId, onSelect, teams=[] }) {
         </div>
         <span className="b-sets">{getScoreDisplay(1)}</span>
       </div>
+      {renderSetHistory()}
     </div>
   );
 }
