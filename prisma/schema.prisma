@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ── NextAuth required models ──────────────────────────────
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?   // Google profile photo URL
+  avatarDataUrl String?   @db.Text // Custom uploaded avatar (base64)
+  accounts      Account[]
+  sessions      Session[]
+  teams         VBTeam[]
+  tournament    VBTournament?
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ── VolleyTrack models ────────────────────────────────────
+model VBTeam {
+  id            String     @id @default(cuid())
+  name          String
+  color         String     @default("#f97316")
+  avatarDataUrl String?    @db.Text
+  userId        String
+  user          User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  players       VBPlayer[]
+  stats         Json       @default("{\"wins\":0,\"losses\":0,\"setsWon\":0,\"setsLost\":0,\"pointsFor\":0,\"pointsAgainst\":0}")
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([userId])
+}
+
+model VBPlayer {
+  id            String  @id @default(cuid())
+  name          String
+  number        String? @default("")
+  avatarDataUrl String? @db.Text
+  teamId        String
+  team          VBTeam  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([teamId])
+}
+
+model VBTournament {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  started     Boolean  @default(false)
+  bracketJson Json?    // Full bracket state serialized as JSON
+  activeMatchId String? // currently-active match id (string of number)
+  champion    String?  // teamId of winner
+  gfResetId   String?
+  setTargetPoints Int  @default(21)
+  set3TargetPoints Int @default(15)
+  updatedAt   DateTime @updatedAt
+}

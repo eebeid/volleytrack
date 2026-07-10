@@ -1,0 +1,9 @@
+node_modules/
+.next/
+.env.local
+.env
+.DS_Store
+*.log
+
+# Keep original vanilla files for reference
+# index.html, style.css, app.js are no longer the entry points

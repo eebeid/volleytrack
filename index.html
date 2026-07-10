@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VolleyTrack — Tournament Manager</title>
+  <meta name="description" content="Track volleyball tournament scores, brackets, rosters and stats in real-time. Double elimination, best of 3.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ============================
+       NAV
+       ============================ -->
+  <nav class="nav" id="mainNav">
+    <div class="nav-brand">
+      <span class="nav-logo">🏐</span>
+      <span class="nav-title">VolleyTrack</span>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="nav-tab active" id="tab-dashboard" data-view="dashboard">
+        <span class="tab-icon">📊</span><span class="tab-label">Scoreboard</span>
+      </button>
+      <button class="nav-tab" id="tab-bracket" data-view="bracket">
+        <span class="tab-icon">🏆</span><span class="tab-label">Bracket</span>
+      </button>
+      <button class="nav-tab" id="tab-teams" data-view="teams">
+        <span class="tab-icon">👥</span><span class="tab-label">Teams</span>
+      </button>
+      <button class="nav-tab" id="tab-stats" data-view="stats">
+        <span class="tab-icon">📈</span><span class="tab-label">Stats</span>
+      </button>
+    </div>
+
+    <div class="nav-profile" id="navProfile" onclick="showView('profile')" role="button" tabindex="0" aria-label="Profile settings">
+      <img id="navAvatar" src="" alt="Profile avatar" class="nav-avatar">
+      <span id="navName" class="nav-name">Player</span>
+    </div>
+  </nav>
+
+  <!-- ============================
+       MAIN CONTENT
+       ============================ -->
+  <main class="main">
+
+    <!-- DASHBOARD / SCOREBOARD -->
+    <section class="view active" id="view-dashboard" aria-label="Scoreboard">
+      <div class="view-header">
+        <div>
+          <h1 class="view-title">Live Scoreboard</h1>
+          <p class="view-subtitle" id="matchContextLabel">No active match</p>
+        </div>
+        <div class="view-actions">
+          <button class="btn btn-secondary" id="btnSelectMatch" onclick="openSelectMatchModal()">Select Match</button>
+          <button class="btn btn-primary" id="btnTournament" onclick="handleTournamentBtn()">Start Tournament</button>
+        </div>
+      </div>
+
+      <!-- Empty / Status state -->
+      <div id="dashboardEmpty" class="empty-state">
+        <div class="empty-icon">🏐</div>
+        <p id="dashboardEmptyMsg">Add at least 2 teams, then start the tournament!</p>
+        <button class="btn btn-primary" onclick="showView('teams')">Manage Teams</button>
+      </div>
+
+      <!-- Active Scoreboard -->
+      <div id="scoreboardContainer" class="hidden">
+
+        <!-- Score Card -->
+        <div class="scoreboard glass-card">
+          <!-- Team 1 -->
+          <div class="team-side" id="side1">
+            <div class="team-avatar-ring" id="ring1">
+              <div class="team-initial" id="initial1">A</div>
+            </div>
+            <div class="team-name-display" id="name1">Team A</div>
+            <div class="sets-indicator" id="sets1">
+              <span class="set-pip" data-idx="0"></span>
+              <span class="set-pip" data-idx="1"></span>
+            </div>
+            <div class="score-big" id="score1">0</div>
+            <div class="score-btns">
+              <button class="sbtn minus" id="minus1" onclick="adjustScore(0,-1)" aria-label="Subtract point team 1">−</button>
+              <button class="sbtn plus"  id="plus1"  onclick="adjustScore(0, 1)" aria-label="Add point team 1">+</button>
+            </div>
+          </div>
+
+          <!-- Centre column -->
+          <div class="sb-center">
+            <div class="vs-badge">VS</div>
+            <div class="set-num-wrap">
+              <div class="set-num-label">SET</div>
+              <div class="set-num" id="setNumDisplay">1</div>
+            </div>
+            <div class="set-history" id="setHistory"></div>
+            <div class="target-info" id="targetInfo">First to 25 · Win by 2</div>
+          </div>
+
+          <!-- Team 2 -->
+          <div class="team-side" id="side2">
+            <div class="team-avatar-ring" id="ring2">
+              <div class="team-initial" id="initial2">B</div>
+            </div>
+            <div class="team-name-display" id="name2">Team B</div>
+            <div class="sets-indicator" id="sets2">
+              <span class="set-pip" data-idx="0"></span>
+              <span class="set-pip" data-idx="1"></span>
+            </div>
+            <div class="score-big" id="score2">0</div>
+            <div class="score-btns">
+              <button class="sbtn minus" id="minus2" onclick="adjustScore(1,-1)" aria-label="Subtract point team 2">−</button>
+              <button class="sbtn plus"  id="plus2"  onclick="adjustScore(1, 1)" aria-label="Add point team 2">+</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Match context banner -->
+        <div class="match-banner glass-card" id="matchBanner">
+          <span id="matchBannerText">Winners Bracket · Round 1</span>
+          <span class="match-banner-badge" id="matchBracketBadge">W</span>
+        </div>
+
+        <!-- Live Chart -->
+        <div class="chart-card glass-card">
+          <div class="chart-card-header">
+            <h3 class="chart-title">Current Set — Point Comparison</h3>
+          </div>
+          <canvas id="liveChart" height="160" role="img" aria-label="Current set score comparison chart"></canvas>
+        </div>
+
+      </div><!-- /scoreboardContainer -->
+
+      <!-- Champion Banner (shown when tournament over) -->
+      <div id="championBanner" class="champion-banner hidden">
+        <div class="champion-inner glass-card">
+          <div class="champ-trophy">🏆</div>
+          <h2 class="champ-title" id="champName">Champion!</h2>
+          <p class="champ-sub">Tournament Champion!</p>
+          <button class="btn btn-primary" onclick="showView('bracket')">View Final Bracket</button>
+          <button class="btn btn-secondary" style="margin-top:.5rem" onclick="resetTournament()">New Tournament</button>
+        </div>
+      </div>
+
+    </section><!-- /dashboard -->
+
+
+    <!-- BRACKET -->
+    <section class="view" id="view-bracket" aria-label="Tournament Bracket">
+      <div class="view-header">
+        <div>
+          <h1 class="view-title">Tournament Bracket</h1>
+          <p class="view-subtitle">Double Elimination · Best of 3 Sets</p>
+        </div>
+        <div class="bracket-legend">
+          <span class="leg winners">Winners</span>
+          <span class="leg losers">Losers</span>
+          <span class="leg gf">Grand Final</span>
+        </div>
+      </div>
+      <div id="bracketWrap"></div>
+    </section>
+
+
+    <!-- TEAMS -->
+    <section class="view" id="view-teams" aria-label="Team Management">
+      <div class="view-header">
+        <div>
+          <h1 class="view-title">Teams &amp; Rosters</h1>
+          <p class="view-subtitle" id="teamCountLabel">0 teams registered</p>
+        </div>
+        <div class="view-actions">
+          <button class="btn btn-primary" id="addTeamBtn" onclick="openAddTeamModal()">＋ Add Team</button>
+        </div>
+      </div>
+      <div id="teamsGrid" class="teams-grid"></div>
+    </section>
+
+
+    <!-- STATS -->
+    <section class="view" id="view-stats" aria-label="Statistics">
+      <div class="view-header">
+        <h1 class="view-title">Tournament Stats</h1>
+      </div>
+      <div class="stats-layout">
+        <div class="chart-card glass-card">
+          <div class="chart-card-header">
+            <h3 class="chart-title">Points Scored Per Team</h3>
+          </div>
+          <canvas id="statsPointsChart" height="260" role="img" aria-label="Bar chart of points scored per team"></canvas>
+        </div>
+        <div class="chart-card glass-card">
+          <div class="chart-card-header">
+            <h3 class="chart-title">Match Wins Per Team</h3>
+          </div>
+          <canvas id="statsWinsChart" height="260" role="img" aria-label="Bar chart of wins per team"></canvas>
+        </div>
+      </div>
+      <div id="statsTableWrap"></div>
+    </section>
+
+
+    <!-- PROFILE -->
+    <section class="view" id="view-profile" aria-label="Profile Settings">
+      <div class="view-header">
+        <h1 class="view-title">My Profile</h1>
+      </div>
+      <div class="profile-card glass-card">
+        <div class="profile-avatar-section">
+          <div class="profile-avatar-wrap" onclick="document.getElementById('avatarFileInput').click()" role="button" tabindex="0" aria-label="Change profile picture">
+            <img id="profileAvatarImg" src="" alt="Your profile avatar" class="profile-avatar-img">
+            <div class="avatar-overlay">
+              <span class="avatar-overlay-icon">📷</span>
+              <span>Change</span>
+            </div>
+          </div>
+          <input type="file" id="avatarFileInput" accept="image/*" hidden aria-label="Upload profile picture">
+        </div>
+        <div class="profile-fields">
+          <h2 class="profile-section-title">Account Details</h2>
+          <div class="form-group">
+            <label class="form-label" for="profileNameInput">Display Name</label>
+            <input type="text" id="profileNameInput" class="form-input" placeholder="Your name" maxlength="40" autocomplete="name">
+          </div>
+          <button class="btn btn-primary" id="saveProfileBtn" onclick="saveProfile()">Save Changes</button>
+        </div>
+      </div>
+    </section>
+
+  </main><!-- /main -->
+
+
+  <!-- ============================
+       MODALS
+       ============================ -->
+
+  <!-- Add Team -->
+  <div class="modal-overlay" id="modalAddTeam" role="dialog" aria-modal="true" aria-labelledby="addTeamTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="addTeamTitle">Add New Team</h2>
+        <button class="modal-close" onclick="closeModal('modalAddTeam')" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <!-- Team Logo Upload -->
+        <div style="display:flex;justify-content:center;margin-bottom:.25rem">
+          <div class="team-logo-upload" onclick="document.getElementById('newTeamAvatarInput').click()"
+               role="button" tabindex="0" aria-label="Upload team logo" id="newTeamLogoWrap">
+            <img id="newTeamAvatarPreview" src="" alt="Team logo preview" class="team-logo-preview">
+            <div class="team-logo-overlay">
+              <span style="font-size:1.1rem">📷</span>
+              <span>Upload Logo</span>
+            </div>
+          </div>
+          <input type="file" id="newTeamAvatarInput" accept="image/*" hidden aria-label="Upload team logo">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="newTeamNameInput">Team Name</label>
+          <input type="text" id="newTeamNameInput" class="form-input" placeholder="e.g. Thunder Hawks" maxlength="30" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Team Color</label>
+          <div class="color-row">
+            <input type="color" id="newTeamColorInput" class="color-swatch-input" value="#f97316" aria-label="Pick team color">
+            <div class="color-presets" id="colorPresets"></div>
+          </div>
+        </div>
+        <button class="btn btn-primary w-full" id="createTeamBtn" onclick="addTeam()">Create Team</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Player -->
+  <div class="modal-overlay" id="modalAddPlayer" role="dialog" aria-modal="true" aria-labelledby="addPlayerTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="addPlayerTitle">Add Player</h2>
+        <button class="modal-close" onclick="closeModal('modalAddPlayer')" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="player-avatar-upload" onclick="document.getElementById('playerAvatarInput').click()" role="button" tabindex="0" aria-label="Upload player photo">
+          <img id="playerAvatarPreview" src="" alt="Player avatar preview" class="player-preview-img">
+          <div class="player-avatar-overlay">📷 Upload Photo</div>
+        </div>
+        <input type="file" id="playerAvatarInput" accept="image/*" hidden aria-label="Upload player photo">
+        <div class="form-group">
+          <label class="form-label" for="newPlayerNameInput">Player Name</label>
+          <input type="text" id="newPlayerNameInput" class="form-input" placeholder="e.g. Alex Johnson" maxlength="40" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="newPlayerNumberInput">Jersey Number</label>
+          <input type="number" id="newPlayerNumberInput" class="form-input" placeholder="0–99" min="0" max="99" autocomplete="off">
+        </div>
+        <input type="hidden" id="addPlayerTeamId">
+        <button class="btn btn-primary w-full" id="confirmAddPlayerBtn" onclick="addPlayer()">Add to Roster</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Select Match -->
+  <div class="modal-overlay" id="modalSelectMatch" role="dialog" aria-modal="true" aria-labelledby="selectMatchTitle">
+    <div class="modal modal-wide">
+      <div class="modal-header">
+        <h2 class="modal-title" id="selectMatchTitle">Select Match to Score</h2>
+        <button class="modal-close" onclick="closeModal('modalSelectMatch')" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" id="selectMatchBody"></div>
+    </div>
+  </div>
+
+  <!-- Match Result -->
+  <div class="modal-overlay" id="modalMatchResult" role="dialog" aria-modal="true" aria-labelledby="matchResultTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="matchResultTitle">Match Complete!</h2>
+        <button class="modal-close" onclick="closeModal('modalMatchResult')" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" id="matchResultBody"></div>
+    </div>
+  </div>
+
+  <!-- Reset Confirm -->
+  <div class="modal-overlay" id="modalConfirmReset" role="dialog" aria-modal="true" aria-labelledby="confirmResetTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="confirmResetTitle">Reset Tournament?</h2>
+        <button class="modal-close" onclick="closeModal('modalConfirmReset')" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="color:var(--text-secondary);margin-bottom:1.25rem">All bracket progress and scores will be lost. Teams and rosters will be kept.</p>
+        <div style="display:flex;gap:.75rem">
+          <button class="btn btn-danger w-full" onclick="confirmReset()">Yes, Reset</button>
+          <button class="btn btn-secondary w-full" onclick="closeModal('modalConfirmReset')">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Grand Final Reset notice -->
+  <div class="modal-overlay" id="modalGFReset" role="dialog" aria-modal="true" aria-labelledby="gfResetTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="gfResetTitle">🔁 Grand Final Reset!</h2>
+        <button class="modal-close" onclick="closeModal('modalGFReset')" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body" id="gfResetBody" style="text-align:center"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
