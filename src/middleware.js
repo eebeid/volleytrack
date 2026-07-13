@@ -19,11 +19,9 @@ export default function middleware(req) {
     (req.method === 'GET' && (pathname === '/api/teams' || pathname === '/api/tournament'));
 
   if (!isPublic) {
-    const useSecureCookies  = process.env.NODE_ENV === 'production';
-    const sessionCookieName = useSecureCookies
-      ? '__Secure-next-auth.session-token'
-      : 'next-auth.session-token';
-    const sessionCookie = req.cookies.get(sessionCookieName);
+    const sessionCookie =
+      req.cookies.get('__Secure-next-auth.session-token') ||
+      req.cookies.get('next-auth.session-token');
 
     if (!sessionCookie?.value) {
       // If it is an API route, return 401 instead of redirecting to signin page
