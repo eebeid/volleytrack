@@ -17,7 +17,7 @@ export default function SignInPage() {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '2rem',
-      background: 'radial-gradient(ellipse 80% 60% at 50% -10%,#1a0e3a 0%,#06091a 60%)',
+      background: 'radial-gradient(ellipse 80% 60% at 50% -10%,#153828 0%,#081a13 60%)',
     }}>
       <div style={{
         background: 'rgba(255,255,255,0.04)',
@@ -34,11 +34,11 @@ export default function SignInPage() {
         <img src="/logo.png" alt="Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain', margin: '0 auto 1.25rem', filter: 'invert(1)', mixBlendMode: 'screen', display: 'block' }} />
         <div style={{
           fontSize: '1.8rem', fontWeight: 900, letterSpacing: '-.02em',
-          background: 'linear-gradient(135deg,#f97316,#ea580c)',
+          background: 'linear-gradient(135deg,#e2c9a3,#c5a880)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           marginBottom: '.35rem',
         }}>Bootaleyzee Cup</div>
-        <p style={{ color: '#94a3b8', fontSize: '.9rem', marginBottom: '2.5rem', lineHeight: 1.6 }}>
+        <p style={{ color: '#9ab8ac', fontSize: '.9rem', marginBottom: '2.5rem', lineHeight: 1.6 }}>
           Tournament Manager &mdash; Double Elimination, Best of 3
         </p>
 

@@ -16,6 +16,7 @@ export default function middleware(req) {
     pathname === '/' ||
     pathname === '/logo.png' ||
     pathname === '/icon.png' ||
+    pathname === '/volleyball_bg.png' ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/auth/') ||
     (req.method === 'GET' && (pathname === '/api/teams' || pathname === '/api/tournament'));
@@ -41,5 +42,5 @@ export default function middleware(req) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|logo.png|icon.png).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|logo.png|icon.png|volleyball_bg.png).*)'],
 };

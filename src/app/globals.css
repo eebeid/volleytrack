@@ -6,18 +6,18 @@
 
 /* ---- Variables ---- */
 :root {
-  --bg-deep:      #06091a;
-  --bg-mid:       #0b1028;
-  --bg-card:      rgba(255,255,255,0.04);
-  --bg-card-h:    rgba(255,255,255,0.07);
-  --border:       rgba(255,255,255,0.08);
-  --border-h:     rgba(255,255,255,0.15);
+  --bg-deep:      #081a13;
+  --bg-mid:       #0e2a1e;
+  --bg-card:      rgba(226,201,163,0.04);
+  --bg-card-h:    rgba(226,201,163,0.07);
+  --border:       rgba(226,201,163,0.08);
+  --border-h:     rgba(226,201,163,0.16);
 
-  --orange:       #f97316;
-  --orange-dim:   rgba(249,115,22,0.18);
-  --orange-glow:  rgba(249,115,22,0.35);
-  --cyan:         #22d3ee;
-  --cyan-dim:     rgba(34,211,238,0.15);
+  --orange:       #e2c9a3;
+  --orange-dim:   rgba(226,201,163,0.15);
+  --orange-glow:  rgba(226,201,163,0.3);
+  --cyan:         #4ade80;
+  --cyan-dim:     rgba(74,222,128,0.15);
   --purple:       #a78bfa;
   --purple-dim:   rgba(167,139,250,0.15);
   --green:        #34d399;
@@ -25,19 +25,19 @@
   --red:          #f87171;
   --red-dim:      rgba(248,113,113,0.15);
 
-  --text-1:   #f0f4ff;
-  --text-2:   #94a3b8;
-  --text-3:   #475569;
+  --text-1:   #f0f7f4;
+  --text-2:   #9ab8ac;
+  --text-3:   #4a695d;
 
-  --grad-orange: linear-gradient(135deg,#f97316,#ea580c);
-  --grad-cyan:   linear-gradient(135deg,#22d3ee,#0e8fa7);
-  --grad-bg:     radial-gradient(ellipse 80% 60% at 50% -10%,#1a0e3a 0%,#06091a 60%);
+  --grad-orange: linear-gradient(135deg,#e2c9a3,#c5a880);
+  --grad-cyan:   linear-gradient(135deg,#4ade80,#16a34a);
+  --grad-bg:     radial-gradient(ellipse 80% 60% at 50% -10%,#153828 0%,#081a13 60%);
 
   --nav-h:    62px;
   --r:        12px;
   --r-lg:     20px;
   --shadow:   0 8px 32px rgba(0,0,0,0.5);
-  --glow-o:   0 0 40px rgba(249,115,22,0.12);
+  --glow-o:   0 0 40px rgba(226,201,163,0.12);
 }
 
 /* ---- Reset ---- */
@@ -51,6 +51,19 @@ body{
   min-height: 100vh;
   line-height: 1.6;
   overflow-x: hidden;
+  position: relative;
+}
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: url('/volleyball_bg.png');
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: min(500px, 60vw);
+  opacity: 0.025; /* Very subtle transparent watermark */
+  z-index: -1;
+  pointer-events: none;
 }
 
 /* =============================================
