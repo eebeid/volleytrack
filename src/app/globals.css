@@ -739,6 +739,10 @@ canvas{ max-width:100%;display:block; }
    RESPONSIVE
    ============================================= */
 @media(max-width:680px){
+  .nav{ padding: 0 0.5rem; gap: 0.35rem; }
+  .nav-logo{ font-size:1.2rem; }
+  .nav-title{ font-size:0.92rem; }
+  .nav-tab{ padding:.45rem .5rem; }
   .scoreboard{
     grid-template-columns:1fr;
     grid-template-rows:auto auto auto;
@@ -748,11 +752,11 @@ canvas{ max-width:100%;display:block; }
   .score-big{ font-size:4rem; }
   .nav-name{ display:none; }
   .tab-label{ display:none; }
-  .nav-tab{ padding:.45rem .7rem; }
   .profile-card{ flex-direction:column;align-items:center; }
   .stats-layout{ grid-template-columns:1fr; }
 }
 @media(max-width:420px){
+  .nav-title{ display:none; }
   .view{ padding:1rem .85rem 2.5rem; }
   .view-header{ flex-direction:column;align-items:flex-start; }
 }
