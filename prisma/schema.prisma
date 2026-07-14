@@ -49,6 +49,7 @@ model User {
   teams             VBTeam[]
   tournament        VBTournament?
   tournamentHistory VBTournamentArchive[]
+  photos            VBPhoto[]
 }
 
 model VerificationToken {
@@ -111,6 +112,17 @@ model VBTournamentArchive {
   championAvatar   String?  @db.Text
   standingsJson    Json
   createdAt        DateTime @default(now())
+
+  @@index([userId])
+}
+
+model VBPhoto {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dataUrl   String   @db.Text
+  caption   String?  @default("")
+  createdAt DateTime @default(now())
 
   @@index([userId])
 }

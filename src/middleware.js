@@ -19,7 +19,8 @@ export default function middleware(req) {
     pathname === '/volleyball_bg.png' ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/auth/') ||
-    (req.method === 'GET' && (pathname === '/api/teams' || pathname === '/api/tournament' || pathname === '/api/tournament/archive'));
+    (req.method === 'GET' && (pathname === '/api/teams' || pathname === '/api/tournament' || pathname === '/api/tournament/archive')) ||
+    pathname === '/api/photos';
 
   if (!isPublic) {
     const sessionCookie =

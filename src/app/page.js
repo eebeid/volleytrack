@@ -85,6 +85,10 @@ export default function Home() {
   const [selectedArchive, setSelectedArchive] = useState(null);
   const [archiveName, setArchiveName] = useState('');
 
+  /* Photos state */
+  const [photos, setPhotos] = useState([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+
   const liveChartRef = useRef(null);
   const toastTimerRef = useRef(null);
 
@@ -110,7 +114,8 @@ export default function Home() {
         const promises = [
           apiFetch('/api/teams'),
           apiFetch('/api/tournament'),
-          apiFetch('/api/tournament/archive').catch(() => [])
+          apiFetch('/api/tournament/archive').catch(() => []),
+          apiFetch('/api/photos').catch(() => [])
         ];
         if (status === 'authenticated') {
           promises.push(apiFetch('/api/profile').catch(() => ({ name: '', avatarDataUrl: '' })));
@@ -119,9 +124,11 @@ export default function Home() {
         const ts = results[0];
         const tourn = results[1];
         const archs = results[2];
-        const prof = status === 'authenticated' ? results[3] : { name: '', avatarDataUrl: '' };
+        const pts = results[3];
+        const prof = status === 'authenticated' ? results[4] : { name: '', avatarDataUrl: '' };
 
         setArchives(archs);
+        setPhotos(pts);
         setProfile({ name: prof?.name||session?.user?.name||'', avatarDataUrl: prof?.avatarDataUrl||'' });
         setTeams(ts.map(t => ({ ...t, stats: t.stats || emptyStats() })));
         setTournament({
@@ -145,11 +152,13 @@ export default function Home() {
 
     const interval = setInterval(async () => {
       try {
-        const [ts, tourn] = await Promise.all([
+        const [ts, tourn, pts] = await Promise.all([
           apiFetch('/api/teams'),
-          apiFetch('/api/tournament')
+          apiFetch('/api/tournament'),
+          apiFetch('/api/photos').catch(() => [])
         ]);
         setTeams(ts.map(t => ({ ...t, stats: t.stats || emptyStats() })));
+        setPhotos(pts);
         setTournament(prev => {
           const nextActiveId = tourn.activeMatchId != null ? Number(tourn.activeMatchId) : null;
           const nextGfResetId = tourn.gfResetId != null ? Number(tourn.gfResetId) : null;
@@ -331,7 +340,67 @@ export default function Home() {
       setTeams(prev => prev.map(t => t.id===teamId ? { ...t, players:t.players.filter(p=>p.id!==playerId) } : t));
     } catch(e) { showToast(e.message,'error'); }
   };
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
+    setUploadingPhoto(true);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = async () => {
+        try {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+
+          const maxW = 1024;
+          const maxH = 768;
+
+          if (width > maxW || height > maxH) {
+            const ratio = Math.min(maxW / width, maxH / height);
+            width = Math.round(width * ratio);
+            height = Math.round(height * ratio);
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.8);
+
+          await apiFetch('/api/photos', {
+            method: 'POST',
+            body: JSON.stringify({ dataUrl: compressedDataUrl, caption: '' })
+          });
+
+          // Refresh photos list
+          const newPhotos = await apiFetch('/api/photos');
+          setPhotos(newPhotos);
+          showToast('Photo uploaded!', 'success');
+        } catch (err) {
+          showToast('Upload failed', 'error');
+        } finally {
+          setUploadingPhoto(false);
+        }
+      };
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const deletePhoto = async (photoId) => {
+    if (!window.confirm('Are you sure you want to delete this photo?')) return;
+    try {
+      await apiFetch(`/api/photos?id=${photoId}`, { method: 'DELETE' });
+      const newPhotos = await apiFetch('/api/photos');
+      setPhotos(newPhotos);
+      showToast('Photo deleted', 'info');
+    } catch (e) {
+      showToast('Delete failed', 'error');
+    }
+  };
   const updatePlayer = async () => {
     if (!newPlayerName.trim()) { showToast('Enter a player name','error'); return; }
     try {
@@ -668,7 +737,7 @@ export default function Home() {
           <span className="nav-title">Bootaleyzee Cup</span>
         </div>
         <div className="nav-tabs">
-          {[['dashboard','📊','Scoreboard'],['bracket','🏆','Bracket'],['schedule','📅','Schedule'],['teams','👥','Teams'],['stats','📈','Stats'],['history','📜','History'],['settings','⚙️','Settings']]
+          {[['dashboard','📊','Scoreboard'],['bracket','🏆','Bracket'],['schedule','📅','Schedule'],['teams','👥','Teams'],['stats','📈','Stats'],['photos','📷','Photos'],['history','📜','History'],['settings','⚙️','Settings']]
             .filter(([id]) => id !== 'settings' || isAdmin)
             .map(([id,icon,label])=>(
               <button key={id} className={`nav-tab${view===id?' active':''}`} onClick={()=>setView(id)}>
@@ -1155,6 +1224,71 @@ export default function Home() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {view==='photos' && (
+          <div className="view active" style={{ display:'flex',flexDirection:'column',gap:'1.5rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+              <div>
+                <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--orange)', margin: 0 }}>📷 Photo Gallery</h2>
+                <p style={{ fontSize: '.9rem', color: 'var(--text-2)', marginTop: '.25rem' }}>Share and view live event photos from the tournament.</p>
+              </div>
+              <div>
+                <button 
+                  className="btn btn-primary" 
+                  disabled={uploadingPhoto}
+                  onClick={() => document.getElementById('galleryPhotoInput').click()}
+                >
+                  {uploadingPhoto ? 'Uploading...' : '📤 Upload Photo'}
+                </button>
+                <input 
+                  type="file" 
+                  id="galleryPhotoInput" 
+                  accept="image/*" 
+                  hidden 
+                  onChange={handlePhotoUpload} 
+                />
+              </div>
+            </div>
+
+            {photos.length === 0 ? (
+              <div className="glass-card" style={{ padding: '4rem 1.5rem', textAlign: 'center', color: 'var(--text-2)' }}>
+                <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>📷</div>
+                <h3 style={{ fontWeight: 800, color: '#fff', fontSize: '1.2rem' }}>No Photos Yet</h3>
+                <p style={{ fontSize: '0.85rem', marginTop: '0.25rem', opacity: 0.6 }}>Be the first to upload a photo from the courts!</p>
+              </div>
+            ) : (
+              <div className="photos-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1.25rem' }}>
+                {photos.map(p => (
+                  <div key={p.id} className="glass-card photo-card" style={{ padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', position: 'relative', overflow: 'hidden' }}>
+                    <div style={{ width: '100%', aspectRatio: '4/3', borderRadius: '8px', overflow: 'hidden', background: '#000' }}>
+                      <img 
+                        src={p.dataUrl} 
+                        alt="Tournament snapshot" 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', cursor: 'pointer' }}
+                        onClick={() => window.open(p.dataUrl, '_blank')} 
+                        title="Click to view full screen"
+                      />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0 0.25rem' }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-3)' }}>
+                        Uploaded {new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                      {isAdmin && (
+                        <button 
+                          className="btn btn-sm btn-danger" 
+                          style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem' }}
+                          onClick={() => deletePhoto(p.id)}
+                        >
+                          Delete
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
