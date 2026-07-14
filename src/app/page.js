@@ -61,7 +61,7 @@ function getMatchTime(startTimeStr, durationMinutes, matchIndex) {
    ═══════════════════════════════════════════════════════════ */
 export default function Home() {
   const { data: session, status } = useSession();
-  const isAdmin = status === 'authenticated';
+  const isAdmin = status === 'authenticated' && session?.user?.email === 'edebeid@gmail.com';
 
   /* ── State ── */
   const [view,        setView]        = useState('dashboard');

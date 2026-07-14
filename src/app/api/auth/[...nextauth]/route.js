@@ -17,6 +17,9 @@ export const authOptions = {
     maxAge:   30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
+    async signIn({ user }) {
+      return user.email === 'edebeid@gmail.com';
+    },
     async session({ session, user }) {
       if (session.user) session.user.id = user.id;
       return session;
