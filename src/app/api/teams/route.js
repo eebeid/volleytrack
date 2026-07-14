@@ -41,9 +41,9 @@ export async function POST(req) {
     userId = t.userId;
   }
 
-  const tourn = await prisma.vBTournament.findFirst({ where: { userId } });
-  if (tourn?.started) {
-    return NextResponse.json({ error: 'Registration is closed because the tournament has already started!' }, { status: 400 });
+  const isPastRegistrationDeadline = new Date() > new Date('2026-07-22T23:59:59');
+  if (isPastRegistrationDeadline) {
+    return NextResponse.json({ error: 'Registration closed on July 22, 2026' }, { status: 400 });
   }
 
   const body = await req.json();

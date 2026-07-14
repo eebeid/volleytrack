@@ -764,7 +764,7 @@ export default function Home() {
   const t1Obj    = teams.find(t=>t.id===match?.team1);
   const t2Obj    = teams.find(t=>t.id===match?.team2);
   const champObj = tournament.champion ? teams.find(t=>t.id===tournament.champion) : null;
-  const isPastRegistrationDeadline = new Date() > new Date('2026-07-25T23:59:59');
+  const isPastRegistrationDeadline = new Date() > new Date('2026-07-22T23:59:59');
 
   const wbRoundsCount = allMatches.length > 0 ? Math.max(...allMatches.filter(m => m.bracket === 'W').map(m => m.round), 0) : 0;
   const wb = [];
@@ -951,7 +951,7 @@ export default function Home() {
                   <div style={{ fontSize: '3.5rem' }}>🔒</div>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#fff', margin: 0 }}>Registration Closed</h3>
                   <p style={{ fontSize: '0.85rem', color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
-                    Team registrations and lunch/beverage orders closed on July 25th, 2026.
+                    Team registrations and lunch/beverage orders closed on July 22nd, 2026.
                   </p>
                 </div>
               ) : (
@@ -967,11 +967,7 @@ export default function Home() {
                       </p>
                     </div>
 
-                    {tournament.started ? (
-                      <div style={{ padding: '.75rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '.82rem', color: 'var(--text-2)' }}>
-                        ℹ️ Tournament has already started. Registration is closed.
-                      </div>
-                    ) : teams.length >= 8 ? (
+                    {teams.length >= 8 ? (
                       <div style={{ padding: '.75rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '.82rem', color: 'var(--orange)', fontWeight: 800 }}>
                         🚫 Maximum limit of 8 teams reached!
                       </div>
