@@ -80,6 +80,11 @@ export default function Home() {
   /* Match result */
   const [matchResult,   setMatchResult]  = useState(null);
 
+  /* Archive History state */
+  const [archives, setArchives] = useState([]);
+  const [selectedArchive, setSelectedArchive] = useState(null);
+  const [archiveName, setArchiveName] = useState('');
+
   const liveChartRef = useRef(null);
   const toastTimerRef = useRef(null);
 
@@ -104,7 +109,8 @@ export default function Home() {
       try {
         const promises = [
           apiFetch('/api/teams'),
-          apiFetch('/api/tournament')
+          apiFetch('/api/tournament'),
+          apiFetch('/api/tournament/archive').catch(() => [])
         ];
         if (status === 'authenticated') {
           promises.push(apiFetch('/api/profile').catch(() => ({ name: '', avatarDataUrl: '' })));
@@ -112,8 +118,10 @@ export default function Home() {
         const results = await Promise.all(promises);
         const ts = results[0];
         const tourn = results[1];
-        const prof = status === 'authenticated' ? results[2] : { name: '', avatarDataUrl: '' };
+        const archs = results[2];
+        const prof = status === 'authenticated' ? results[3] : { name: '', avatarDataUrl: '' };
 
+        setArchives(archs);
         setProfile({ name: prof?.name||session?.user?.name||'', avatarDataUrl: prof?.avatarDataUrl||'' });
         setTeams(ts.map(t => ({ ...t, stats: t.stats || emptyStats() })));
         setTournament({
@@ -129,6 +137,50 @@ export default function Home() {
       finally { setLoading(false); }
     })();
   }, [status]);
+
+  /* ── Lightweight Spectator Polling Hook ── */
+  useEffect(() => {
+    if (isAdmin) return;
+    if (!tournament.started || tournament.champion) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const [ts, tourn] = await Promise.all([
+          apiFetch('/api/teams'),
+          apiFetch('/api/tournament')
+        ]);
+        setTeams(ts.map(t => ({ ...t, stats: t.stats || emptyStats() })));
+        setTournament(prev => {
+          const nextActiveId = tourn.activeMatchId != null ? Number(tourn.activeMatchId) : null;
+          const nextGfResetId = tourn.gfResetId != null ? Number(tourn.gfResetId) : null;
+          if (
+            prev.started !== tourn.started ||
+            JSON.stringify(prev.bracketJson) !== JSON.stringify(tourn.bracketJson) ||
+            prev.activeMatchId !== nextActiveId ||
+            prev.champion !== tourn.champion ||
+            prev.gfResetId !== nextGfResetId ||
+            prev.setTargetPoints !== tourn.setTargetPoints ||
+            prev.set3TargetPoints !== tourn.set3TargetPoints
+          ) {
+            return {
+              started:      tourn.started      ?? false,
+              bracketJson:  tourn.bracketJson  ?? null,
+              activeMatchId: nextActiveId,
+              champion:     tourn.champion     ?? null,
+              gfResetId:    nextGfResetId,
+              setTargetPoints: tourn.setTargetPoints ?? 21,
+              set3TargetPoints: tourn.set3TargetPoints ?? 15,
+            };
+          }
+          return prev;
+        });
+      } catch (e) {
+        // Silent error handling for background polling
+      }
+    }, 8000);
+
+    return () => clearInterval(interval);
+  }, [isAdmin, tournament.started, tournament.champion]);
 
   /* ── Save tournament to API ── */
   const saveTournament = useCallback(async (tourn) => {
@@ -320,6 +372,46 @@ export default function Home() {
     await saveTournament(newTourn);
     showToast('Tournament started! 🏐','success');
     setView('bracket');
+  };
+
+  const archiveTournament = async (name) => {
+    try {
+      const sortedTeams = [...teams].sort((a,b) => {
+        const wA = a.stats.wins, wB = b.stats.wins;
+        if (wA !== wB) return wB - wA;
+        return (b.stats.pointsFor - b.stats.pointsAgainst) - (a.stats.pointsFor - a.stats.pointsAgainst);
+      });
+      const champObj = teams.find(t => t.id === tournament.champion);
+
+      await apiFetch('/api/tournament/archive', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: name,
+          bracketJson: tournament.bracketJson,
+          championName: champObj?.name || 'TBD',
+          championColor: champObj?.color || '#e2c9a3',
+          championAvatar: champObj?.avatarDataUrl || null,
+          standingsJson: sortedTeams.map(t => ({
+            id: t.id,
+            name: t.name,
+            color: t.color,
+            avatarDataUrl: t.avatarDataUrl,
+            wins: t.stats.wins,
+            losses: t.stats.losses,
+            setsWon: t.stats.setsWon,
+            setsLost: t.stats.setsLost,
+            pointsFor: t.stats.pointsFor,
+            pointsAgainst: t.stats.pointsAgainst,
+          }))
+        })
+      });
+
+      const newArchs = await apiFetch('/api/tournament/archive');
+      setArchives(newArchs);
+      showToast('Tournament archived!', 'success');
+    } catch (e) {
+      showToast('Failed to archive', 'error');
+    }
   };
 
   const resetTournament = async () => {
@@ -576,7 +668,7 @@ export default function Home() {
           <span className="nav-title">Bootaleyzee Cup</span>
         </div>
         <div className="nav-tabs">
-          {[['dashboard','📊','Scoreboard'],['bracket','🏆','Bracket'],['schedule','📅','Schedule'],['teams','👥','Teams'],['stats','📈','Stats'],['settings','⚙️','Settings']]
+          {[['dashboard','📊','Scoreboard'],['bracket','🏆','Bracket'],['schedule','📅','Schedule'],['teams','👥','Teams'],['stats','📈','Stats'],['history','📜','History'],['settings','⚙️','Settings']]
             .filter(([id]) => id !== 'settings' || isAdmin)
             .map(([id,icon,label])=>(
               <button key={id} className={`nav-tab${view===id?' active':''}`} onClick={()=>setView(id)}>
@@ -988,6 +1080,81 @@ export default function Home() {
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════
+            SCHEDULE
+            ══════════════════════════════ */}
+        {view==='history' && (
+          <div className="view active" style={{ display:'flex',flexDirection:'column',gap:'1.5rem' }}>
+            <div>
+              <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--orange)', margin: 0 }}>📜 Tournament History</h2>
+              <p style={{ fontSize: '.9rem', color: 'var(--text-2)', marginTop: '.25rem' }}>View past champions, standings, and brackets from previous years.</p>
+            </div>
+
+            {archives.length === 0 ? (
+              <div className="glass-card" style={{ padding: '3rem 1.5rem', textAlign: 'center', color: 'var(--text-2)' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📜</div>
+                <h3 style={{ fontWeight: 800, color: '#fff', fontSize: '1.2rem' }}>No Archived Tournaments</h3>
+                <p style={{ fontSize: '0.85rem', marginTop: '0.25rem', opacity: 0.6 }}>When a tournament is reset, you can choose to archive it here.</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {archives.map(arch => {
+                  const dateStr = new Date(arch.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                  return (
+                    <div key={arch.id} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                        <div>
+                          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', margin: 0 }}>{arch.name}</h3>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-3)', fontWeight: 600 }}>Archived on {dateStr}</span>
+                        </div>
+                        
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.03)', padding: '0.35rem 0.85rem', borderRadius: '50px', border: '1px solid var(--border)' }}>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-2)', fontWeight: 600 }}>Winner:</span>
+                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: arch.championColor }} />
+                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--orange)' }}>{arch.championName}</span>
+                          </div>
+                          
+                          <button 
+                            className="btn btn-sm btn-primary" 
+                            onClick={() => {
+                              setSelectedArchive(arch);
+                              setModal('viewArchiveDetail');
+                            }}
+                          >
+                            View details
+                          </button>
+
+                          {isAdmin && (
+                            <button 
+                              className="btn btn-sm btn-danger" 
+                              style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
+                              onClick={async () => {
+                                if (window.confirm("Are you sure you want to delete this tournament archive permanently?")) {
+                                  try {
+                                    await apiFetch(`/api/tournament/archive?id=${arch.id}`, { method: 'DELETE' });
+                                    const newArchs = await apiFetch('/api/tournament/archive');
+                                    setArchives(newArchs);
+                                    showToast('Archive deleted', 'info');
+                                  } catch (e) {
+                                    showToast('Delete failed', 'error');
+                                  }
+                                }
+                              }}
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -1493,9 +1660,35 @@ export default function Home() {
           </div>
           <div className="modal-body">
             <p style={{ color:'var(--text-2)',textAlign:'center',marginBottom:'1rem' }}>This will erase all match results and bracket progress. Teams will be kept.</p>
+            <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: '8px', padding: '1rem', marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--orange)', marginBottom: '0.5rem' }}>
+                Optional: Archive before resetting?
+              </label>
+              <input
+                type="text"
+                placeholder="E.g., Bootaleyzee Cup 2026"
+                className="form-input"
+                value={archiveName}
+                onChange={e => setArchiveName(e.target.value)}
+                style={{ width: '100%', marginBottom: '0.5rem' }}
+              />
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-2)' }}>
+                Leave name empty to skip archiving.
+              </span>
+            </div>
             <div style={{ display:'flex',gap:'.65rem' }}>
               <button className="btn btn-secondary w-full" onClick={()=>setModal(null)}>Cancel</button>
-              <button className="btn btn-danger w-full" onClick={resetTournament}>Yes, Reset</button>
+              <button 
+                className="btn btn-danger w-full" 
+                onClick={async () => {
+                  if (archiveName.trim()) {
+                    await archiveTournament(archiveName.trim());
+                  }
+                  await resetTournament();
+                }}
+              >
+                Yes, Reset
+              </button>
             </div>
           </div>
         </div>
@@ -1540,6 +1733,125 @@ export default function Home() {
               <button className="btn btn-primary w-full" onClick={()=>{ setModal(null); selectMatch(gfResetInfo.matchId); }}>Score Deciding Match</button>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* Archive Details Modal */}
+      <div className={`modal-overlay${modal==='viewArchiveDetail'?' open':''}`} onClick={e=>{ if(e.target===e.currentTarget) setModal(null); }}>
+        <div className="modal" style={{ maxWidth: '900px', width: '90%' }}>
+          <div className="modal-header">
+            <h2 className="modal-title">🏆 {selectedArchive?.name} Details</h2>
+            <button className="modal-close" onClick={()=>setModal(null)}>✕</button>
+          </div>
+          {selectedArchive && (() => {
+            const arch = selectedArchive;
+            const archMatches = arch.bracketJson?.matches || [];
+            const archiveTeams = arch.standingsJson || [];
+
+            // Calculate bracket rounds
+            const wbRoundsCount = archMatches.length > 0 ? Math.max(...archMatches.filter(m => m.bracket === 'W').map(m => m.round), 0) : 0;
+            const archiveWb = [];
+            for (let r = 1; r <= wbRoundsCount; r++) {
+              archiveWb.push(archMatches.filter(m => m.bracket === 'W' && m.round === r).sort((a, b) => a.id - b.id));
+            }
+
+            const lbRoundsCount = archMatches.length > 0 ? Math.max(...archMatches.filter(m => m.bracket === 'L').map(m => m.round), 0) : 0;
+            const archiveLb = [];
+            for (let r = 1; r <= lbRoundsCount; r++) {
+              archiveLb.push(archMatches.filter(m => m.bracket === 'L' && m.round === r).sort((a, b) => a.id - b.id));
+            }
+
+            const gf = archMatches.find(m => m.bracket === 'GF');
+            const gfr = archMatches.find(m => m.bracket === 'GFR');
+
+            return (
+              <div className="modal-body" style={{ maxHeight: '80vh', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '2rem', padding: '1.5rem' }}>
+                
+                {/* Standings */}
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--orange)', marginBottom: '0.75rem' }}>📊 Final Standings</h3>
+                  <div className="table-responsive">
+                    <table className="stats-table">
+                      <thead>
+                        <tr>
+                          <th>Team</th>
+                          <th>Wins</th>
+                          <th>Losses</th>
+                          <th>Sets Ratio</th>
+                          <th>Points Ratio</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {archiveTeams.map((t, idx) => (
+                          <tr key={idx}>
+                            <td>
+                              <div className="team-cell">
+                                <div className="tc-dot" style={{ background: t.color }}></div>
+                                {t.name}
+                              </div>
+                            </td>
+                            <td>{t.wins}</td>
+                            <td>{t.losses}</td>
+                            <td>{t.setsWon} – {t.setsLost}</td>
+                            <td>{t.pointsFor} – {t.pointsAgainst}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Bracket View */}
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--orange)', marginBottom: '1.25rem' }}>🏆 Tournament Bracket</h3>
+                  <div className="bracket-wrapper" style={{ overflowX: 'auto', paddingBottom: '1rem' }}>
+                    <div className="bracket-container" style={{ minWidth: '800px' }}>
+                      <BracketSection 
+                        title="Winners Bracket" 
+                        labelClass="wb-hdr" 
+                        rounds={archiveWb}
+                        matchClass="winners-match"
+                        activeId={null}
+                        onSelect={undefined}
+                        teams={archiveTeams}
+                      />
+
+                      {gf && (
+                        <div className="bracket-section">
+                          <div className="bracket-section-label gf-hdr">Grand Final</div>
+                          <div className="bracket-row">
+                            <div className="bracket-col">
+                              <div className="bracket-round-label">Finals</div>
+                              <BracketMatchCard m={gf} cls="gf-match" activeId={null} onSelect={undefined} teams={archiveTeams} />
+                              {gfr && (
+                                <div style={{ marginTop: '1.5rem' }}>
+                                  <div className="bracket-round-label" style={{ color: 'var(--orange)' }}>Reset Match</div>
+                                  <BracketMatchCard m={gfr} cls="gf-match" activeId={null} onSelect={undefined} teams={archiveTeams} />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {archiveLb.length > 0 && (
+                        <BracketSection 
+                          title="Losers Bracket" 
+                          labelClass="lb-hdr" 
+                          rounds={archiveLb}
+                          matchClass="losers-match"
+                          activeId={null}
+                          onSelect={undefined}
+                          teams={archiveTeams}
+                        />
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+            );
+          })()}
         </div>
       </div>
 

@@ -46,8 +46,9 @@ model User {
   avatarDataUrl String?   @db.Text // Custom uploaded avatar (base64)
   accounts      Account[]
   sessions      Session[]
-  teams         VBTeam[]
-  tournament    VBTournament?
+  teams             VBTeam[]
+  tournament        VBTournament?
+  tournamentHistory VBTournamentArchive[]
 }
 
 model VerificationToken {
@@ -97,4 +98,19 @@ model VBTournament {
   setTargetPoints Int  @default(21)
   set3TargetPoints Int @default(15)
   updatedAt   DateTime @updatedAt
+}
+
+model VBTournamentArchive {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name             String
+  bracketJson      Json
+  championName     String
+  championColor    String   @default("#f97316")
+  championAvatar   String?  @db.Text
+  standingsJson    Json
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
 }

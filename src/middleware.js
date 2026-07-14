@@ -19,7 +19,7 @@ export default function middleware(req) {
     pathname === '/volleyball_bg.png' ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/auth/') ||
-    (req.method === 'GET' && (pathname === '/api/teams' || pathname === '/api/tournament'));
+    (req.method === 'GET' && (pathname === '/api/teams' || pathname === '/api/tournament' || pathname === '/api/tournament/archive'));
 
   if (!isPublic) {
     const sessionCookie =
