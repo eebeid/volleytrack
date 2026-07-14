@@ -1003,7 +1003,7 @@ export default function Home() {
                           <img className="r-avatar" src={p.avatarDataUrl||PLAYER_AVATAR} alt={p.name} />
                           <div className="r-num">{p.number?'#'+p.number:'—'}</div>
                           <div className="r-name">{p.name}</div>
-                          {isAdmin && !tournament.started && (
+                          {isAdmin && (
                             <div className="player-actions" style={{ marginLeft:'auto', display:'flex', gap:'.35rem' }}>
                               <button
                                 className="btn btn-sm btn-secondary"
@@ -1032,7 +1032,7 @@ export default function Home() {
                           )}
                         </div>
                       ))}
-                      {isAdmin && !tournament.started && (
+                      {isAdmin && (
                         <button className="add-player-row" onClick={()=>{ setAddPlayerTeamId(team.id); setNewPlayerName(''); setNewPlayerNum(''); setNewPlayerAvatar(''); setModal('addPlayer'); }}>＋ Add Player</button>
                       )}
                     </div>
