@@ -115,7 +115,53 @@ export function generateBracket(teamIds) {
 
   propagate(allMatches);
 
-  return { matches: allMatches, wbRounds, lbRounds, gfId: gf.id, pow, sz };
+  // Helper to sort matches chronologically for playing order
+  function getMatchOrderKey(m) {
+    if (m.bracket === 'GF') return 1000;
+    if (m.bracket === 'GFR') return 1001;
+    if (m.bracket === 'W') {
+      return m.round === 1 ? 1 : (3 * m.round - 3);
+    }
+    if (m.bracket === 'L') {
+      if (m.round === 1) return 2;
+      const isEven = m.round % 2 === 0;
+      const half = isEven ? m.round / 2 : (m.round - 1) / 2;
+      return isEven ? (3 * half + 1) : (3 * half + 2);
+    }
+    return 999;
+  }
+
+  // 1. Sort allMatches chronologically
+  const sortedMatches = [...allMatches].sort((a, b) => {
+    const keyA = getMatchOrderKey(a);
+    const keyB = getMatchOrderKey(b);
+    if (keyA !== keyB) return keyA - keyB;
+    return a.id - b.id;
+  });
+
+  // 2. Build map of oldId -> newId
+  const oldToNew = {};
+  sortedMatches.forEach((m, idx) => {
+    oldToNew[m.id] = idx + 1;
+  });
+
+  // 3. Re-assign match IDs and update feed links
+  sortedMatches.forEach((m) => {
+    m.id = oldToNew[m.id];
+    if (m.feedWinners) m.feedWinners = m.feedWinners.map(id => oldToNew[id]);
+    if (m.feedLosers)  m.feedLosers = m.feedLosers.map(id => oldToNew[id]);
+    if (m.feedWinner != null) m.feedWinner = oldToNew[m.feedWinner];
+    if (m.feedLoser != null)  m.feedLoser = oldToNew[m.feedLoser];
+    if (m.feedWB != null)     m.feedWB = oldToNew[m.feedWB];
+    if (m.feedLB != null)     m.feedLB = oldToNew[m.feedLB];
+  });
+
+  // 4. Update the returned round structure with the new IDs
+  const newWbRounds = wbRounds.map(r => r.map(m => oldToNew[m.id]));
+  const newLbRounds = lbRounds.map(r => r.map(m => oldToNew[m.id]));
+  const newGfId = gf ? oldToNew[gf.id] : null;
+
+  return { matches: sortedMatches, wbRounds: newWbRounds, lbRounds: newLbRounds, gfId: newGfId, pow, sz };
 }
 
 export function propagate(matches) {
