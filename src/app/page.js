@@ -317,6 +317,7 @@ export default function Home() {
      TOURNAMENT
      ═══════════════════════════════════════════════════════════ */
   const startTournament = async () => {
+    if (!isAdmin) return;
     if (teams.length < 2) { showToast('Add at least 2 teams first!','error'); setView('teams'); return; }
     const resetTeams = teams.map(t => ({ ...t, stats: emptyStats() }));
     setTeams(resetTeams);
@@ -777,8 +778,8 @@ export default function Home() {
               {!tournament.started ? (
                 <div className="empty-state">
                   <div className="empty-icon">🏆</div>
-                  <p>Start the tournament to generate the bracket.</p>
-                  <button className="btn btn-primary" onClick={startTournament}>Start Tournament</button>
+                  <p>{isAdmin ? 'Start the tournament to generate the bracket.' : 'Waiting for the admin to start the tournament.'}</p>
+                  {isAdmin && <button className="btn btn-primary" onClick={startTournament}>Start Tournament</button>}
                 </div>
               ) : (
                 <>
