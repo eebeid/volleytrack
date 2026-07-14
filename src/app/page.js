@@ -694,6 +694,9 @@ export default function Home() {
                       }
                     </div>
                     <div className="team-name-display">{t1Obj?.name||'TBD'}</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--orange)', marginTop: '0.25rem' }}>
+                      Sets: {match.setsWon[0]}
+                    </div>
                     <div className="sets-indicator">
                       <div className={`set-pip${match.setsWon[0]>0?' won':''}`}/>
                       <div className={`set-pip${match.setsWon[0]>1?' won':''}`}/>
@@ -714,9 +717,14 @@ export default function Home() {
                       <div className="set-num-label">SET</div>
                       <div className="set-num">{match.currentSet+1}</div>
                     </div>
-                    <div className="set-history">
-                      {match.sets.slice(0,match.currentSet).map((s,i)=>(
-                        <div key={i}>Set {i+1}: {s.t1}–{s.t2}</div>
+                    <div className="set-history" style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', alignItems: 'center' }}>
+                      <div style={{ fontWeight: 800, color: 'var(--orange)', fontSize: '1rem', marginBottom: '0.2rem' }}>
+                        Sets: {match.setsWon[0]} – {match.setsWon[1]}
+                      </div>
+                      {match.sets.map((s,i)=>(
+                        <div key={i} style={i === match.currentSet ? { color: '#fff', fontWeight: 700 } : { opacity: 0.6 }}>
+                          Set {i+1}: {s.t1}–{s.t2} {i === match.currentSet ? '(Live)' : ''}
+                        </div>
                       ))}
                     </div>
                     <div className="target-info">First to {match.currentSet===2?(tournament.set3TargetPoints || 15):(tournament.setTargetPoints || 21)} · Win by {WIN_BY}</div>
@@ -731,6 +739,9 @@ export default function Home() {
                       }
                     </div>
                     <div className="team-name-display">{t2Obj?.name||'TBD'}</div>
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--cyan)', marginTop: '0.25rem' }}>
+                      Sets: {match.setsWon[1]}
+                    </div>
                     <div className="sets-indicator">
                       <div className={`set-pip${match.setsWon[1]>0?' won':''}`}/>
                       <div className={`set-pip${match.setsWon[1]>1?' won':''}`}/>
@@ -1057,11 +1068,17 @@ export default function Home() {
                               <span style={{ margin: '0 0.5rem', opacity: 0.4 }}>vs</span>
                               <span style={t2 ? { color: t2.color } : { opacity: 0.5 }}>{t2 ? t2.name : 'TBD'}</span>
                             </div>
-                            {m.complete && m.sets.length > 0 && (
+                            {m.sets.length > 0 && (
                               <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginTop: '0.15rem' }}>
-                                Result: <span style={{ fontWeight: 700, color: 'var(--orange)' }}>{m.setsWon[0]} – {m.setsWon[1]}</span>
+                                <span style={{ fontWeight: 600, color: m.complete ? 'var(--text-3)' : 'var(--orange)' }}>
+                                  {m.complete ? 'Result: ' : 'Live: '}
+                                </span>
+                                <span style={{ fontWeight: 700, color: 'var(--text-1)' }}>{m.setsWon[0]} – {m.setsWon[1]}</span>
                                 <span style={{ opacity: 0.5, fontSize: '0.75rem', marginLeft: '0.5rem' }}>
-                                  ({m.sets.map(s => `${s.t1}-${s.t2}`).join(', ')})
+                                  ({m.sets.map((s, idx) => {
+                                    const isLive = !m.complete && idx === m.currentSet;
+                                    return `${s.t1}-${s.t2}${isLive ? '*' : ''}`;
+                                  }).join(', ')})
                                 </span>
                               </div>
                             )}
@@ -1567,20 +1584,21 @@ function BracketMatchCard({ m, cls, activeId, onSelect, teams=[] }) {
     if (m.complete) return m.setsWon[teamIdx];
     const setScore = m.sets[m.currentSet];
     const livePts = setScore ? (teamIdx === 0 ? setScore.t1 : setScore.t2) : 0;
+    const hasSetsPlayed = m.sets.length > 0;
     return (
       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
         {m.setsWon[teamIdx]}
-        {isActive && <span style={{ opacity: 0.6, fontSize: '0.85em', fontWeight: 'normal' }}>({livePts})</span>}
+        {hasSetsPlayed && <span style={{ opacity: 0.6, fontSize: '0.85em', fontWeight: 'normal' }}>({livePts})</span>}
       </span>
     );
   };
 
   const renderSetHistory = () => {
     if (!m.sets || m.sets.length === 0) return null;
-    const historyStrings = m.sets
-      .filter(s => s.t1 > 0 || s.t2 > 0)
-      .map(s => `${s.t1}-${s.t2}`);
-    if (historyStrings.length === 0) return null;
+    const historyStrings = m.sets.map((s, idx) => {
+      const isLive = !m.complete && idx === m.currentSet;
+      return `${s.t1}-${s.t2}${isLive ? '*' : ''}`;
+    });
     return (
       <div style={{ fontSize: '.7rem', color: '#94a3b8', padding: '.25rem .7rem', borderTop: '1px solid rgba(255,255,255,0.03)', textAlign: 'center', background: 'rgba(0,0,0,0.12)', fontStyle: 'italic' }}>
         ({historyStrings.join(', ')})
