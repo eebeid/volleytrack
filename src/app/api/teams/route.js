@@ -32,18 +32,29 @@ export async function GET() {
 
 // POST /api/teams — create team
 export async function POST(req) {
-  const user = await getUser();
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const session = await getServerSession(authOptions);
+  let userId = session?.user?.id;
+
+  if (!userId) {
+    const t = await prisma.vBTournament.findFirst();
+    if (!t) return NextResponse.json({ error: 'No active tournament found' }, { status: 400 });
+    userId = t.userId;
+  }
+
+  const tourn = await prisma.vBTournament.findFirst({ where: { userId } });
+  if (tourn?.started) {
+    return NextResponse.json({ error: 'Registration is closed because the tournament has already started!' }, { status: 400 });
+  }
 
   const body = await req.json();
   const { name, color, avatarDataUrl } = body;
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
 
-  const count = await prisma.vBTeam.count({ where: { userId: user.id } });
+  const count = await prisma.vBTeam.count({ where: { userId } });
   if (count >= 8) return NextResponse.json({ error: 'Maximum 8 teams' }, { status: 400 });
 
   const team = await prisma.vBTeam.create({
-    data: { name: name.trim(), color: color || '#f97316', avatarDataUrl: avatarDataUrl || null, userId: user.id },
+    data: { name: name.trim(), color: color || '#f97316', avatarDataUrl: avatarDataUrl || null, userId },
     include: { players: true },
   });
   return NextResponse.json(team, { status: 201 });

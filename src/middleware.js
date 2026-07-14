@@ -21,7 +21,7 @@ export default function middleware(req) {
     pathname.startsWith('/auth/') ||
     (req.method === 'GET' && (pathname === '/api/teams' || pathname === '/api/tournament' || pathname === '/api/tournament/archive')) ||
     pathname === '/api/photos' ||
-    (req.method === 'POST' && pathname === '/api/orders');
+    (req.method === 'POST' && (pathname === '/api/orders' || pathname === '/api/teams'));
 
   if (!isPublic) {
     const sessionCookie =

@@ -764,6 +764,7 @@ export default function Home() {
   const t1Obj    = teams.find(t=>t.id===match?.team1);
   const t2Obj    = teams.find(t=>t.id===match?.team2);
   const champObj = tournament.champion ? teams.find(t=>t.id===tournament.champion) : null;
+  const isPastRegistrationDeadline = new Date() > new Date('2026-07-25T23:59:59');
 
   const wbRoundsCount = allMatches.length > 0 ? Math.max(...allMatches.filter(m => m.bracket === 'W').map(m => m.round), 0) : 0;
   const wb = [];
@@ -945,107 +946,185 @@ export default function Home() {
                 </ul>
               </div>
 
-              {/* Order Form & Pricing Estimator */}
-              <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--orange)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', margin: 0 }}>
-                    🥪 Team Order Form
-                  </h3>
-                  <p style={{ fontSize: '0.75rem', color: 'var(--text-2)', marginTop: '0.25rem' }}>
-                    Calculate and submit your team's lunch and beverage package. Teams register and order by <strong>July 22nd</strong>.
+              {isPastRegistrationDeadline ? (
+                <div className="glass-card" style={{ padding: '2rem 1.5rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', gap: '1rem' }}>
+                  <div style={{ fontSize: '3.5rem' }}>🔒</div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: '#fff', margin: 0 }}>Registration Closed</h3>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-2)', lineHeight: 1.6, margin: 0 }}>
+                    Team registrations and lunch/beverage orders closed on July 25th, 2026.
                   </p>
                 </div>
-
-                <form onSubmit={submitOrder} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Captain Name</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        placeholder="Edmond Ebeid" 
-                        value={orderCaptainName}
-                        onChange={e => setOrderCaptainName(e.target.value)} 
-                        required 
-                      />
+              ) : (
+                <>
+                  {/* Team Registration Form */}
+                  <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--orange)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', margin: 0 }}>
+                        🏆 Team Registration
+                      </h3>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-2)', marginTop: '0.25rem' }}>
+                        Register your team for the Bootaleyzee Cup. Maximum 8 teams total.
+                      </p>
                     </div>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontSize: '0.75rem' }}>CCF Member #</label>
-                      <input 
-                        type="text" 
-                        className="form-input" 
-                        placeholder="E.g., 1947" 
-                        value={orderMemberNumber}
-                        onChange={e => setOrderMemberNumber(e.target.value)} 
-                        required 
-                      />
-                    </div>
-                  </div>
 
-                  {/* Lunch Choice Quantities */}
-                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#fff', display: 'block', marginBottom: '0.5rem' }}>
-                      Boxed Lunches ($10/each)
-                    </span>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-3)', display: 'block', marginBottom: '0.5rem' }}>
-                      Includes: Sandwich + Rosemary Chips + Cookie + Bottled Water
-                    </span>
+                    {tournament.started ? (
+                      <div style={{ padding: '.75rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '.82rem', color: 'var(--text-2)' }}>
+                        ℹ️ Tournament has already started. Registration is closed.
+                      </div>
+                    ) : teams.length >= 8 ? (
+                      <div style={{ padding: '.75rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '.82rem', color: 'var(--orange)', fontWeight: 800 }}>
+                        🚫 Maximum limit of 8 teams reached!
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: '0.75rem' }}>Team Name</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            placeholder="E.g., Sandy Spikes" 
+                            value={newTeamName}
+                            onChange={e => setNewTeamName(e.target.value)} 
+                          />
+                        </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                      {[
-                        { label: 'Ham Lunch', state: orderHamCount, setter: setOrderHamCount },
-                        { label: 'Turkey Lunch', state: orderTurkeyCount, setter: setOrderTurkeyCount },
-                        { label: 'Egg Salad Lunch', state: orderEggSaladCount, setter: setOrderEggSaladCount }
-                      ].map((item, idx) => (
-                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-2)' }}>{item.label}</span>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.1rem 0.4rem' }} onClick={() => item.setter(Math.max(0, item.state - 1))}>-</button>
-                            <span style={{ fontSize: '0.85rem', width: '20px', textAlign: 'center', color: '#fff', fontWeight: 800 }}>{item.state}</span>
-                            <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.1rem 0.4rem' }} onClick={() => item.setter(item.state + 1)}>+</button>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: '0.75rem', marginBottom: '0.5rem', display: 'block' }}>Team Theme Color</label>
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                            {PRESET_COLORS.map(c => (
+                              <div 
+                                key={c} 
+                                onClick={() => setNewTeamColor(c)}
+                                style={{ 
+                                  width: '24px', 
+                                  height: '24px', 
+                                  borderRadius: '50%', 
+                                  background: c, 
+                                  cursor: 'pointer',
+                                  border: newTeamColor === c ? '2px solid #fff' : '1px solid rgba(0,0,0,0.3)',
+                                  boxShadow: newTeamColor === c ? '0 0 8px rgba(255,255,255,0.5)' : 'none',
+                                  transform: newTeamColor === c ? 'scale(1.15)' : 'none',
+                                  transition: 'transform 0.1s'
+                                }} 
+                              />
+                            ))}
                           </div>
                         </div>
-                      ))}
-                    </div>
+
+                        <button 
+                          type="button" 
+                          className="btn btn-primary w-full"
+                          disabled={saving || !newTeamName.trim()}
+                          onClick={addTeam}
+                        >
+                          {saving ? 'Registering...' : 'Register Team'}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Beverage Packages */}
-                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#fff', display: 'block' }}>
-                          Beverage Package ($10/pkg)
+                  {/* Order Form & Pricing Estimator */}
+                  <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--orange)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', margin: 0 }}>
+                        🥪 Team Order Form
+                      </h3>
+                      <p style={{ fontSize: '0.75rem', color: 'var(--text-2)', marginTop: '0.25rem' }}>
+                        Calculate and submit your team's lunch and beverage package. Teams register and order by <strong>July 22nd</strong>.
+                      </p>
+                    </div>
+
+                    <form onSubmit={submitOrder} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: '0.75rem' }}>Captain Name</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            placeholder="Edmond Ebeid" 
+                            value={orderCaptainName}
+                            onChange={e => setOrderCaptainName(e.target.value)} 
+                            required 
+                          />
+                        </div>
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: '0.75rem' }}>CCF Member #</label>
+                          <input 
+                            type="text" 
+                            className="form-input" 
+                            placeholder="E.g., 1947" 
+                            value={orderMemberNumber}
+                            onChange={e => setOrderMemberNumber(e.target.value)} 
+                            required 
+                          />
+                        </div>
+                      </div>
+
+                      {/* Lunch Choice Quantities */}
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#fff', display: 'block', marginBottom: '0.5rem' }}>
+                          Boxed Lunches ($10/each)
                         </span>
-                        <span style={{ fontSize: '0.68rem', color: 'var(--text-3)' }}>
-                          3 drinks package
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-3)', display: 'block', marginBottom: '0.5rem' }}>
+                          Includes: Sandwich + Rosemary Chips + Cookie + Bottled Water
+                        </span>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                          {[
+                            { label: 'Ham Lunch', state: orderHamCount, setter: setOrderHamCount },
+                            { label: 'Turkey Lunch', state: orderTurkeyCount, setter: setOrderTurkeyCount },
+                            { label: 'Egg Salad Lunch', state: orderEggSaladCount, setter: setOrderEggSaladCount }
+                          ].map((item, idx) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.8rem', color: 'var(--text-2)' }}>{item.label}</span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.1rem 0.4rem' }} onClick={() => item.setter(Math.max(0, item.state - 1))}>-</button>
+                                <span style={{ fontSize: '0.85rem', width: '20px', textAlign: 'center', color: '#fff', fontWeight: 800 }}>{item.state}</span>
+                                <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.1rem 0.4rem' }} onClick={() => item.setter(item.state + 1)}>+</button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Beverage Packages */}
+                      <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#fff', display: 'block' }}>
+                              Beverage Package ($10/pkg)
+                            </span>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-3)' }}>
+                              3 drinks package
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.1rem 0.4rem' }} onClick={() => setOrderDrinkPackages(Math.max(0, orderDrinkPackages - 1))}>-</button>
+                            <span style={{ fontSize: '0.85rem', width: '20px', textAlign: 'center', color: '#fff', fontWeight: 800 }}>{orderDrinkPackages}</span>
+                            <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.1rem 0.4rem' }} onClick={() => setOrderDrinkPackages(orderDrinkPackages + 1)}>+</button>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Pricing Calculation Summary */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderTop: '1px solid var(--border)' }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-2)' }}>Total Cost:</span>
+                        <span style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--orange)' }}>
+                          ${(orderHamCount + orderTurkeyCount + orderEggSaladCount) * 10 + orderDrinkPackages * 10}
                         </span>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.1rem 0.4rem' }} onClick={() => setOrderDrinkPackages(Math.max(0, orderDrinkPackages - 1))}>-</button>
-                        <span style={{ fontSize: '0.85rem', width: '20px', textAlign: 'center', color: '#fff', fontWeight: 800 }}>{orderDrinkPackages}</span>
-                        <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.1rem 0.4rem' }} onClick={() => setOrderDrinkPackages(orderDrinkPackages + 1)}>+</button>
-                      </div>
-                    </div>
+
+                      <button 
+                        type="submit" 
+                        className="btn btn-primary w-full"
+                        disabled={submittingOrder || (!orderHamCount && !orderTurkeyCount && !orderEggSaladCount && !orderDrinkPackages)}
+                      >
+                        {submittingOrder ? 'Submitting...' : 'Submit Lunch & Drink Order'}
+                      </button>
+                    </form>
                   </div>
-
-                  {/* Pricing Calculation Summary */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderTop: '1px solid var(--border)' }}>
-                    <span style={{ fontSize: '0.85rem', color: 'var(--text-2)' }}>Total Cost:</span>
-                    <span style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--orange)' }}>
-                      ${(orderHamCount + orderTurkeyCount + orderEggSaladCount) * 10 + orderDrinkPackages * 10}
-                    </span>
-                  </div>
-
-                  <button 
-                    type="submit" 
-                    className="btn btn-primary w-full"
-                    disabled={submittingOrder || (!orderHamCount && !orderTurkeyCount && !orderEggSaladCount && !orderDrinkPackages)}
-                  >
-                    {submittingOrder ? 'Submitting...' : 'Submit Lunch & Drink Order'}
-                  </button>
-                </form>
-              </div>
-
+                </>
+              )}
             </div>
 
             {/* Costumes alert & Contact Split */}
