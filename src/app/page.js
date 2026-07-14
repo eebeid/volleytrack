@@ -57,6 +57,9 @@ export default function Home() {
   const [editingTeamId,   setEditingTeamId]   = useState(null);
   const [editingTeamName, setEditingTeamName] = useState('');
 
+  /* Edit Player state */
+  const [editingPlayerId, setEditingPlayerId] = useState(null);
+
   /* Auto Populate state */
   const [autoTeamCount,   setAutoTeamCount]   = useState(8);
 
@@ -262,6 +265,21 @@ export default function Home() {
     try {
       await apiFetch(`/api/teams/${teamId}/players/${playerId}`, { method:'DELETE' });
       setTeams(prev => prev.map(t => t.id===teamId ? { ...t, players:t.players.filter(p=>p.id!==playerId) } : t));
+    } catch(e) { showToast(e.message,'error'); }
+  };
+
+  const updatePlayer = async () => {
+    if (!newPlayerName.trim()) { showToast('Enter a player name','error'); return; }
+    try {
+      const player = await apiFetch(`/api/teams/${addPlayerTeamId}/players/${editingPlayerId}`, {
+        method:'PUT', body:JSON.stringify({ name:newPlayerName.trim(), number:newPlayerNum, avatarDataUrl:newPlayerAvatar }),
+      });
+      setTeams(prev => prev.map(t => t.id===addPlayerTeamId ? {
+        ...t,
+        players: t.players.map(p => p.id===editingPlayerId ? player : p)
+      } : t));
+      setModal(null);
+      showToast('Player updated!','success');
     } catch(e) { showToast(e.message,'error'); }
   };
 
@@ -867,7 +885,33 @@ export default function Home() {
                           <img className="r-avatar" src={p.avatarDataUrl||PLAYER_AVATAR} alt={p.name} />
                           <div className="r-num">{p.number?'#'+p.number:'—'}</div>
                           <div className="r-name">{p.name}</div>
-                          {isAdmin && !tournament.started && <button className="btn btn-sm btn-danger" style={{ marginLeft:'auto',padding:'.2rem .45rem' }} onClick={()=>deletePlayer(team.id,p.id)}>✕</button>}
+                          {isAdmin && !tournament.started && (
+                            <div className="player-actions" style={{ marginLeft:'auto', display:'flex', gap:'.35rem' }}>
+                              <button
+                                className="btn btn-sm btn-secondary"
+                                style={{ padding:'.2rem .45rem', display:'flex', alignItems:'center', justifyContent:'center' }}
+                                onClick={() => {
+                                  setAddPlayerTeamId(team.id);
+                                  setEditingPlayerId(p.id);
+                                  setNewPlayerName(p.name);
+                                  setNewPlayerNum(p.number || '');
+                                  setNewPlayerAvatar(p.avatarDataUrl || '');
+                                  setModal('editPlayer');
+                                }}
+                                title="Edit Player"
+                              >
+                                ✏️
+                              </button>
+                              <button
+                                className="btn btn-sm btn-danger"
+                                style={{ padding:'.2rem .45rem', display:'flex', alignItems:'center', justifyContent:'center' }}
+                                onClick={() => deletePlayer(team.id, p.id)}
+                                title="Delete Player"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                       {isAdmin && !tournament.started && (
@@ -1177,6 +1221,39 @@ export default function Home() {
               <input className="form-input" value={newPlayerNum} onChange={e=>setNewPlayerNum(e.target.value)} placeholder="e.g. 7" maxLength={3} />
             </div>
             <button className="btn btn-primary w-full" onClick={addPlayer}>Add Player</button>
+          </div>
+        </div>
+      </div>
+
+      {/* Edit Player */}
+      <div className={`modal-overlay${modal==='editPlayer'?' open':''}`} onClick={e=>{ if(e.target===e.currentTarget) setModal(null); }}>
+        <div className="modal">
+          <div className="modal-header">
+            <h2 className="modal-title">Edit Player</h2>
+            <button className="modal-close" onClick={()=>setModal(null)}>✕</button>
+          </div>
+          <div className="modal-body">
+            <div style={{ display:'flex',justifyContent:'center' }}>
+              <div className="player-avatar-upload" onClick={()=>document.getElementById('editPlayerAvatarInput').click()}>
+                <img className="player-preview-img" src={newPlayerAvatar||PLAYER_AVATAR} alt="Player" />
+                <div className="player-avatar-overlay">📷 Photo</div>
+              </div>
+              <input type="file" id="editPlayerAvatarInput" accept="image/*" hidden onChange={e=>{
+                const file=e.target.files[0]; if(!file) return;
+                const reader=new FileReader();
+                reader.onload=ev=>setNewPlayerAvatar(ev.target.result);
+                reader.readAsDataURL(file);
+              }} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Player Name</label>
+              <input className="form-input" value={newPlayerName} onChange={e=>setNewPlayerName(e.target.value)} onKeyDown={e=>e.key==='Enter'&&updatePlayer()} placeholder="Full name" autoFocus maxLength={40} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Jersey Number</label>
+              <input className="form-input" value={newPlayerNum} onChange={e=>setNewPlayerNum(e.target.value)} placeholder="e.g. 7" maxLength={3} />
+            </div>
+            <button className="btn btn-primary w-full" onClick={updatePlayer}>Save Changes</button>
           </div>
         </div>
       </div>
