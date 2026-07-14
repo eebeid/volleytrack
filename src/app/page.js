@@ -26,24 +26,6 @@ function matchLabel(m) {
   return `${m.bracket==='W'?'Winners':'Losers'} Bracket · Round ${m.round}`;
 }
 
-function getMatchOrderKey(m) {
-  if (m.bracket === 'GF') {
-    return 1000;
-  }
-  if (m.bracket === 'GFR') {
-    return 1001;
-  }
-  if (m.bracket === 'W') {
-    return m.round === 1 ? 1 : (3 * m.round - 3);
-  }
-  if (m.bracket === 'L') {
-    if (m.round === 1) return 2;
-    const isEven = m.round % 2 === 0;
-    const half = isEven ? m.round / 2 : (m.round - 1) / 2;
-    return isEven ? (3 * half + 1) : (3 * half + 2);
-  }
-  return 999;
-}
 
 function getMatchTime(startTimeStr, durationMinutes, matchIndex) {
   const [hours, minutes] = (startTimeStr || "10:00").split(':').map(Number);
@@ -180,7 +162,7 @@ export default function Home() {
     const t1 = teams.find(t => t.id === match.team1);
     const t2 = teams.find(t => t.id === match.team2);
     drawLiveChart(liveChartRef.current, match, t1, t2);
-  });
+  }, [view, tournament.activeMatchId, tournament.bracketJson, teams]);
 
   /* ── Derived ── */
   const bracket = tournament.bracketJson;
@@ -1035,12 +1017,7 @@ export default function Home() {
                   {(() => {
                     const matchesToSchedule = allMatches
                       .filter(m => !(m.complete && m.sets.length === 0 && (!m.team1 || !m.team2)))
-                      .sort((a, b) => {
-                        const keyA = getMatchOrderKey(a);
-                        const keyB = getMatchOrderKey(b);
-                        if (keyA !== keyB) return keyA - keyB;
-                        return a.id - b.id;
-                      });
+                      .sort((a, b) => a.id - b.id);
 
                     if (matchesToSchedule.length === 0) {
                       return <div className="empty-state"><p>No matches to display in the schedule.</p></div>;
