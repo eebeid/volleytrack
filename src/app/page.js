@@ -26,6 +26,36 @@ function matchLabel(m) {
   return `${m.bracket==='W'?'Winners':'Losers'} Bracket · Round ${m.round}`;
 }
 
+function getMatchOrderKey(m) {
+  if (m.bracket === 'GF') {
+    return 1000;
+  }
+  if (m.bracket === 'GFR') {
+    return 1001;
+  }
+  if (m.bracket === 'W') {
+    return m.round === 1 ? 1 : (3 * m.round - 3);
+  }
+  if (m.bracket === 'L') {
+    if (m.round === 1) return 2;
+    const isEven = m.round % 2 === 0;
+    const half = isEven ? m.round / 2 : (m.round - 1) / 2;
+    return isEven ? (3 * half + 1) : (3 * half + 2);
+  }
+  return 999;
+}
+
+function getMatchTime(startTimeStr, durationMinutes, matchIndex) {
+  const [hours, minutes] = (startTimeStr || "10:00").split(':').map(Number);
+  const totalMinutes = hours * 60 + minutes + matchIndex * (durationMinutes || 25);
+  const h24 = Math.floor(totalMinutes / 60) % 24;
+  const m = totalMinutes % 60;
+  const ampm = h24 >= 12 ? 'PM' : 'AM';
+  const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  const mStr = String(m).padStart(2, '0');
+  return `${h12}:${mStr} ${ampm}`;
+}
+
 /* ═══════════════════════════════════════════════════════════
    MAIN APP
    ═══════════════════════════════════════════════════════════ */
@@ -292,6 +322,8 @@ export default function Home() {
     setTeams(resetTeams);
 
     const newBracket = generateBracket(resetTeams.map(t=>t.id));
+    newBracket.startTime = "10:00";
+    newBracket.matchDuration = 25;
     const newTourn = {
       started:true,
       bracketJson:newBracket,
@@ -561,7 +593,7 @@ export default function Home() {
           <span className="nav-title">VolleyTrack</span>
         </div>
         <div className="nav-tabs">
-          {[['dashboard','📊','Scoreboard'],['bracket','🏆','Bracket'],['teams','👥','Teams'],['stats','📈','Stats'],['settings','⚙️','Settings']]
+          {[['dashboard','📊','Scoreboard'],['bracket','🏆','Bracket'],['schedule','📅','Schedule'],['teams','👥','Teams'],['stats','📈','Stats'],['settings','⚙️','Settings']]
             .filter(([id]) => id !== 'settings' || isAdmin)
             .map(([id,icon,label])=>(
               <button key={id} className={`nav-tab${view===id?' active':''}`} onClick={()=>setView(id)}>
@@ -963,6 +995,146 @@ export default function Home() {
                   </table>
                 </div>
               </div>
+            )}
+          </div>
+        )}
+
+        {/* ══════════════════════════════
+            SCHEDULE
+            ══════════════════════════════ */}
+        {view==='schedule' && (
+          <div className="view active">
+            <div className="view-header">
+              <div>
+                <h1 className="view-title">Tournament Schedule</h1>
+                <div className="view-subtitle">Match times and chronological order of events</div>
+              </div>
+            </div>
+
+            {!tournament.started || !bracket ? (
+              <div className="empty-state">
+                <div className="empty-icon">📅</div>
+                <p>Start the tournament to generate a schedule of events.</p>
+              </div>
+            ) : (
+              <>
+                {/* Schedule Settings Control Card */}
+                <div className="glass-card schedule-settings" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div className="form-group" style={{ marginBottom: 0, minWidth: '180px' }}>
+                    <label className="form-label">Event Start Time</label>
+                    <input
+                      type="time"
+                      className="form-input"
+                      style={{ marginTop: '.35rem' }}
+                      value={bracket.startTime || "10:00"}
+                      disabled={!isAdmin}
+                      onChange={async (e) => {
+                        const newBracket = { ...bracket, startTime: e.target.value };
+                        const newTourn = { ...tournament, bracketJson: newBracket };
+                        setTournament(newTourn);
+                        await saveTournament(newTourn);
+                      }}
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0, minWidth: '180px' }}>
+                    <label className="form-label">Match Duration</label>
+                    <select
+                      className="form-input"
+                      style={{ marginTop: '.35rem', background: '#0d1530', color: '#f0f4ff', border: '1px solid rgba(255,255,255,0.12)', height: '42px', padding: '0 0.75rem', borderRadius: '8px' }}
+                      value={bracket.matchDuration || 25}
+                      disabled={!isAdmin}
+                      onChange={async (e) => {
+                        const newBracket = { ...bracket, matchDuration: Number(e.target.value) };
+                        const newTourn = { ...tournament, bracketJson: newBracket };
+                        setTournament(newTourn);
+                        await saveTournament(newTourn);
+                      }}
+                    >
+                      <option value={20}>20 Minutes</option>
+                      <option value={25}>25 Minutes</option>
+                      <option value={30}>30 Minutes</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Timeline */}
+                <div className="timeline">
+                  {(() => {
+                    const matchesToSchedule = allMatches
+                      .filter(m => !(m.complete && m.sets.length === 0 && (!m.team1 || !m.team2)))
+                      .sort((a, b) => {
+                        const keyA = getMatchOrderKey(a);
+                        const keyB = getMatchOrderKey(b);
+                        if (keyA !== keyB) return keyA - keyB;
+                        return a.id - b.id;
+                      });
+
+                    if (matchesToSchedule.length === 0) {
+                      return <div className="empty-state"><p>No matches to display in the schedule.</p></div>;
+                    }
+
+                    return matchesToSchedule.map((m, idx) => {
+                      const isActive = m.id === tournament.activeMatchId;
+                      const timeStr = getMatchTime(bracket.startTime || "10:00", bracket.matchDuration || 25, idx);
+                      
+                      const t1 = teams.find(t => t.id === m.team1);
+                      const t2 = teams.find(t => t.id === m.team2);
+
+                      const canScore = isAdmin && !m.complete && m.team1 && m.team2;
+
+                      return (
+                        <div key={m.id} className="timeline-item">
+                          <div className="timeline-time">
+                            <div>{timeStr}</div>
+                            <div style={{ fontSize: '0.65rem', fontWeight: 600, color: 'var(--text-3)', marginTop: '0.2rem' }}>Match {m.id}</div>
+                          </div>
+                          <div className="timeline-content">
+                            <div className="timeline-match-title">{matchLabel(m)}</div>
+                            <div className="timeline-teams">
+                              <span style={t1 ? { color: t1.color } : { opacity: 0.5 }}>{t1 ? t1.name : 'TBD'}</span>
+                              <span style={{ margin: '0 0.5rem', opacity: 0.4 }}>vs</span>
+                              <span style={t2 ? { color: t2.color } : { opacity: 0.5 }}>{t2 ? t2.name : 'TBD'}</span>
+                            </div>
+                            {m.complete && m.sets.length > 0 && (
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-2)', marginTop: '0.15rem' }}>
+                                Result: <span style={{ fontWeight: 700, color: 'var(--orange)' }}>{m.setsWon[0]} – {m.setsWon[1]}</span>
+                                <span style={{ opacity: 0.5, fontSize: '0.75rem', marginLeft: '0.5rem' }}>
+                                  ({m.sets.map(s => `${s.t1}-${s.t2}`).join(', ')})
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="timeline-status">
+                            {m.complete ? (
+                              <span className="badge badge-completed">Completed</span>
+                            ) : isActive ? (
+                              <span className="badge badge-progress">Live</span>
+                            ) : (
+                              <span className="badge badge-scheduled">Scheduled</span>
+                            )}
+
+                            {canScore && (
+                              <button
+                                className="btn btn-sm btn-primary"
+                                style={{ padding: '0.35rem 0.6rem' }}
+                                onClick={async () => {
+                                  const newTourn = { ...tournament, activeMatchId: m.id };
+                                  setTournament(newTourn);
+                                  await saveTournament(newTourn);
+                                  setView('dashboard');
+                                  showToast(`Match ${m.id} is now active!`, 'success');
+                                }}
+                              >
+                                Score
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </>
             )}
           </div>
         )}
