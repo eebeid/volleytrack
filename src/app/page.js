@@ -1613,6 +1613,10 @@ function BracketMatchCard({ m, cls, activeId, onSelect, teams=[] }) {
       title={canScore?'Click to score this match':''}
       style={{ overflow: 'hidden' }}
     >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.2rem 0.5rem', background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '0.62rem', color: 'var(--text-3)', fontWeight: 800 }}>
+        <span>MATCH {m.id}</span>
+        {isActive && <span style={{ color: 'var(--orange)', animation: 'pulse 2s infinite' }}>● LIVE</span>}
+      </div>
       <div className={`b-team${t1Won?' won':''}${m.complete&&!t1Won?' lost':''}`}>
         <div className="b-label">
           <div className="b-dot" style={{ background:teamColor(m.team1) }}/>
