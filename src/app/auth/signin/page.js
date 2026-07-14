@@ -37,7 +37,7 @@ export default function SignInPage() {
           background: 'linear-gradient(135deg,#f97316,#ea580c)',
           WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
           marginBottom: '.35rem',
-        }}>VolleyTrack</div>
+        }}>Bootaleyzee Cup</div>
         <p style={{ color: '#94a3b8', fontSize: '.9rem', marginBottom: '2.5rem', lineHeight: 1.6 }}>
           Tournament Manager &mdash; Double Elimination, Best of 3
         </p>

@@ -555,7 +555,7 @@ export default function Home() {
     return (
       <div style={{ minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'1rem' }}>
         <img src="/logo.png" alt="Logo" style={{ height:'60px',width:'auto',objectFit:'contain',filter:'invert(1)',mixBlendMode:'screen' }} />
-        <div style={{ color:'#94a3b8',fontSize:'.9rem' }}>Loading VolleyTrack…</div>
+        <div style={{ color:'#94a3b8',fontSize:'.9rem' }}>Loading Bootaleyzee Cup…</div>
       </div>
     );
   }
@@ -590,7 +590,7 @@ export default function Home() {
       <nav className="nav">
         <div className="nav-brand">
           <img src="/logo.png" className="nav-logo-img" alt="Logo" />
-          <span className="nav-title">VolleyTrack</span>
+          <span className="nav-title">Bootaleyzee Cup</span>
         </div>
         <div className="nav-tabs">
           {[['dashboard','📊','Scoreboard'],['bracket','🏆','Bracket'],['schedule','📅','Schedule'],['teams','👥','Teams'],['stats','📈','Stats'],['settings','⚙️','Settings']]

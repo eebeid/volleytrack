@@ -2,7 +2,7 @@ import Providers from '@/components/Providers';
 import './globals.css';
 
 export const metadata = {
-  title: 'VolleyTrack — Tournament Manager',
+  title: 'Bootaleyzee Cup — Tournament Manager',
   description: 'Volleyball double-elimination tournament manager with live scoring and bracket tracking.',
 };
 
