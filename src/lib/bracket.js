@@ -131,8 +131,17 @@ export function generateBracket(teamIds) {
     return 999;
   }
 
-  // 1. Sort allMatches chronologically
+  const isByeMatch = (m) => {
+    return m.complete && m.sets.length === 0 && (!m.team1 || !m.team2);
+  };
+
+  // 1. Sort allMatches chronologically, pushing bye matches to the end
   const sortedMatches = [...allMatches].sort((a, b) => {
+    const byeA = isByeMatch(a);
+    const byeB = isByeMatch(b);
+    if (byeA !== byeB) {
+      return byeA ? 1 : -1;
+    }
     const keyA = getMatchOrderKey(a);
     const keyB = getMatchOrderKey(b);
     if (keyA !== keyB) return keyA - keyB;
