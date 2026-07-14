@@ -554,7 +554,7 @@ export default function Home() {
   if (status==='loading' || loading) {
     return (
       <div style={{ minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',gap:'1rem' }}>
-        <div style={{ fontSize:'2.5rem' }}>🏐</div>
+        <img src="/logo.png" alt="Logo" style={{ height:'60px',width:'auto',objectFit:'contain',filter:'invert(1)',mixBlendMode:'screen' }} />
         <div style={{ color:'#94a3b8',fontSize:'.9rem' }}>Loading VolleyTrack…</div>
       </div>
     );
@@ -589,7 +589,7 @@ export default function Home() {
       {/* ── NAV ── */}
       <nav className="nav">
         <div className="nav-brand">
-          <span className="nav-logo">🏐</span>
+          <img src="/logo.png" className="nav-logo-img" alt="Logo" />
           <span className="nav-title">VolleyTrack</span>
         </div>
         <div className="nav-tabs">

@@ -31,7 +31,7 @@ export default function SignInPage() {
         boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
       }}>
         {/* Logo */}
-        <div style={{ fontSize: '3.5rem', marginBottom: '1rem' }}>🏐</div>
+        <img src="/logo.png" alt="Logo" style={{ height: '70px', width: 'auto', objectFit: 'contain', margin: '0 auto 1.25rem', filter: 'invert(1)', mixBlendMode: 'screen', display: 'block' }} />
         <div style={{
           fontSize: '1.8rem', fontWeight: 900, letterSpacing: '-.02em',
           background: 'linear-gradient(135deg,#f97316,#ea580c)',

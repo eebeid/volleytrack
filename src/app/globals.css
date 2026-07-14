@@ -76,6 +76,7 @@ body{
   flex-shrink:0;cursor:default;user-select:none;
 }
 .nav-logo{ font-size:1.4rem;line-height:1; }
+.nav-logo-img{ height:26px;width:auto;object-fit:contain;filter:invert(1);mix-blend-mode:screen; }
 .nav-title{
   font-size:1.05rem;font-weight:900;letter-spacing:-.01em;
   background: var(--grad-orange);
@@ -741,6 +742,7 @@ canvas{ max-width:100%;display:block; }
 @media(max-width:680px){
   .nav{ padding: 0 0.5rem; gap: 0.35rem; }
   .nav-logo{ font-size:1.2rem; }
+  .nav-logo-img{ height:22px; }
   .nav-title{ font-size:0.92rem; }
   .nav-tab{ padding:.45rem .5rem; }
   .scoreboard{
