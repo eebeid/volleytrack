@@ -1018,45 +1018,6 @@ export default function Home() {
               </div>
             ) : (
               <>
-                {/* Schedule Settings Control Card */}
-                <div className="glass-card schedule-settings" style={{ border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <div className="form-group" style={{ marginBottom: 0, minWidth: '180px' }}>
-                    <label className="form-label">Event Start Time</label>
-                    <input
-                      type="time"
-                      className="form-input"
-                      style={{ marginTop: '.35rem' }}
-                      value={bracket.startTime || "10:00"}
-                      disabled={!isAdmin}
-                      onChange={async (e) => {
-                        const newBracket = { ...bracket, startTime: e.target.value };
-                        const newTourn = { ...tournament, bracketJson: newBracket };
-                        setTournament(newTourn);
-                        await saveTournament(newTourn);
-                      }}
-                    />
-                  </div>
-                  <div className="form-group" style={{ marginBottom: 0, minWidth: '180px' }}>
-                    <label className="form-label">Match Duration</label>
-                    <select
-                      className="form-input"
-                      style={{ marginTop: '.35rem', background: '#0d1530', color: '#f0f4ff', border: '1px solid rgba(255,255,255,0.12)', height: '42px', padding: '0 0.75rem', borderRadius: '8px' }}
-                      value={bracket.matchDuration || 25}
-                      disabled={!isAdmin}
-                      onChange={async (e) => {
-                        const newBracket = { ...bracket, matchDuration: Number(e.target.value) };
-                        const newTourn = { ...tournament, bracketJson: newBracket };
-                        setTournament(newTourn);
-                        await saveTournament(newTourn);
-                      }}
-                    >
-                      <option value={20}>20 Minutes</option>
-                      <option value={25}>25 Minutes</option>
-                      <option value={30}>30 Minutes</option>
-                    </select>
-                  </div>
-                </div>
-
                 {/* Timeline */}
                 <div className="timeline">
                   {(() => {
@@ -1246,6 +1207,59 @@ export default function Home() {
                         ))}
                       </div>
                     </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Schedule & Duration Settings */}
+              <div className="glass-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--orange)', margin: 0 }}>📅 Schedule & Duration Settings</h3>
+                <p style={{ fontSize: '.85rem', color: 'var(--text-2)', lineHeight: 1.5, margin: 0 }}>
+                  Configure the start time of the first match and the estimated duration for each match.
+                </p>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '.78rem' }}>Event Start Time</label>
+                    <input
+                      type="time"
+                      className="form-input"
+                      style={{ marginTop: '.35rem' }}
+                      value={bracket?.startTime || "10:00"}
+                      disabled={!tournament.started}
+                      onChange={async (e) => {
+                        const newBracket = { ...bracket, startTime: e.target.value };
+                        const newTourn = { ...tournament, bracketJson: newBracket };
+                        setTournament(newTourn);
+                        await saveTournament(newTourn);
+                      }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label" style={{ fontSize: '.78rem' }}>Match Duration</label>
+                    <select
+                      className="form-input"
+                      style={{ marginTop: '.35rem', background: '#0d1530', color: '#f0f4ff', border: '1px solid rgba(255,255,255,0.12)', height: '42px', padding: '0 0.75rem', borderRadius: '8px' }}
+                      value={bracket?.matchDuration || 25}
+                      disabled={!tournament.started}
+                      onChange={async (e) => {
+                        const newBracket = { ...bracket, matchDuration: Number(e.target.value) };
+                        const newTourn = { ...tournament, bracketJson: newBracket };
+                        setTournament(newTourn);
+                        await saveTournament(newTourn);
+                      }}
+                    >
+                      <option value={20}>20 Minutes</option>
+                      <option value={25}>25 Minutes</option>
+                      <option value={30}>30 Minutes</option>
+                    </select>
+                  </div>
+                </div>
+
+                {!tournament.started && (
+                  <div style={{ padding: '.75rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '.85rem', color: 'var(--text-2)' }}>
+                    ℹ️ Start the tournament to enable schedule settings.
                   </div>
                 )}
               </div>
