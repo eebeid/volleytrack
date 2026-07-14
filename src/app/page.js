@@ -786,7 +786,7 @@ export default function Home() {
       <nav className="nav">
         <div className="nav-brand">
           <img src="/logo.png" className="nav-logo-img" alt="Logo" />
-          <span className="nav-title">Bootaleyzee Cup</span>
+          <span className="nav-title" style={{ fontFamily: 'Anton, sans-serif', letterSpacing: '1.5px', fontSize: '1.4rem', textTransform: 'uppercase', color: 'var(--orange)' }}>Bootaleyzee Cup</span>
         </div>
         <div className="nav-tabs">
           {[['home','🏠','Home'],['dashboard','📊','Scoreboard'],['bracket','🏆','Bracket'],['schedule','📅','Schedule'],['teams','👥','Teams'],['stats','📈','Stats'],['photos','📷','Photos'],['history','📜','History'],['settings','⚙️','Settings']]
@@ -851,12 +851,12 @@ export default function Home() {
               </div>
               
               <h1 style={{ 
-                fontFamily: 'Outfit, sans-serif', 
-                fontSize: 'clamp(2.5rem, 6vw, 4.5rem)', 
-                fontWeight: 900, 
+                fontFamily: 'Anton, sans-serif', 
+                fontSize: 'clamp(3rem, 8vw, 5.5rem)', 
+                fontWeight: 'normal', 
                 color: '#fff', 
                 margin: 0,
-                letterSpacing: '-2px',
+                letterSpacing: '3px',
                 lineHeight: 1,
                 textTransform: 'uppercase'
               }}>
