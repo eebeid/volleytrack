@@ -11,9 +11,11 @@ export default function middleware(req) {
     return NextResponse.redirect(url);
   }
 
-  // Allow anyone to view the homepage and fetch bracket data (GET)
+  // Allow anyone to view the homepage, fetch bracket data, and load static brand assets
   const isPublic =
     pathname === '/' ||
+    pathname === '/logo.png' ||
+    pathname === '/icon.png' ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/auth/') ||
     (req.method === 'GET' && (pathname === '/api/teams' || pathname === '/api/tournament'));
@@ -39,5 +41,5 @@ export default function middleware(req) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|logo.png|icon.png).*)'],
 };
