@@ -81,6 +81,7 @@ model VBPlayer {
   id            String  @id @default(cuid())
   name          String
   number        String? @default("")
+  age           Int?
   avatarDataUrl String? @db.Text
   teamId        String
   team          VBTeam  @relation(fields: [teamId], references: [id], onDelete: Cascade)

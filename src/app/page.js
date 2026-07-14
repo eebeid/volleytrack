@@ -64,6 +64,10 @@ export default function Home() {
   const [newPlayerName,   setNewPlayerName]   = useState('');
   const [newPlayerNum,    setNewPlayerNum]     = useState('');
   const [newPlayerAvatar, setNewPlayerAvatar] = useState('');
+  const [newPlayerAge,    setNewPlayerAge]    = useState('');
+
+  /* Roster registration state for Home page */
+  const [registerRoster, setRegisterRoster] = useState([{ name: '', age: '' }]);
 
   /* Edit Team Name state */
   const [editingTeamId,   setEditingTeamId]   = useState(null);
@@ -273,8 +277,25 @@ export default function Home() {
     if (!newTeamName.trim()) { showToast('Enter a team name','error'); return; }
     if (teams.length >= 8)   { showToast('Maximum 8 teams','error'); return; }
     try {
-      const team = await apiFetch('/api/teams', { method:'POST', body:JSON.stringify({ name:newTeamName.trim(), color:newTeamColor, avatarDataUrl:newTeamAvatar }) });
+      const payload = { 
+        name: newTeamName.trim(), 
+        color: newTeamColor, 
+        avatarDataUrl: newTeamAvatar 
+      };
+      
+      const validPlayers = registerRoster.filter(p => p.name.trim());
+      if (validPlayers.length > 0) {
+        payload.players = validPlayers;
+      }
+
+      const team = await apiFetch('/api/teams', { 
+        method: 'POST', 
+        body: JSON.stringify(payload) 
+      });
+
       setTeams(prev => [...prev, { ...team, stats: emptyStats() }]);
+      setNewTeamName('');
+      setRegisterRoster([{ name: '', age: '' }]);
       setModal(null);
       showToast(`"${team.name}" added!`, 'success');
     } catch(e) { showToast(e.message,'error'); }
@@ -339,7 +360,7 @@ export default function Home() {
     if (!newPlayerName.trim()) { showToast('Enter a player name','error'); return; }
     try {
       const player = await apiFetch(`/api/teams/${addPlayerTeamId}/players`, {
-        method:'POST', body:JSON.stringify({ name:newPlayerName.trim(), number:newPlayerNum, avatarDataUrl:newPlayerAvatar }),
+        method:'POST', body:JSON.stringify({ name:newPlayerName.trim(), number:newPlayerNum, age:newPlayerAge, avatarDataUrl:newPlayerAvatar }),
       });
       setTeams(prev => prev.map(t => t.id===addPlayerTeamId ? { ...t, players:[...t.players, player] } : t));
       setModal(null);
@@ -456,7 +477,7 @@ export default function Home() {
     if (!newPlayerName.trim()) { showToast('Enter a player name','error'); return; }
     try {
       const player = await apiFetch(`/api/teams/${addPlayerTeamId}/players/${editingPlayerId}`, {
-        method:'PUT', body:JSON.stringify({ name:newPlayerName.trim(), number:newPlayerNum, avatarDataUrl:newPlayerAvatar }),
+        method:'PUT', body:JSON.stringify({ name:newPlayerName.trim(), number:newPlayerNum, age:newPlayerAge, avatarDataUrl:newPlayerAvatar }),
       });
       setTeams(prev => prev.map(t => t.id===addPlayerTeamId ? {
         ...t,
@@ -1007,6 +1028,73 @@ export default function Home() {
                           </div>
                         </div>
 
+                        {/* Roster list */}
+                        <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          <div>
+                            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#fff', display: 'block' }}>
+                              👥 Team Roster (Min 5 / Max 8)
+                            </span>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--text-3)' }}>
+                              Add player names and ages. At least one player must be 40+.
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                            {registerRoster.map((player, idx) => (
+                              <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                <input 
+                                  type="text" 
+                                  className="form-input" 
+                                  placeholder={`Player #${idx + 1} Name`}
+                                  value={player.name}
+                                  onChange={e => {
+                                    const updated = [...registerRoster];
+                                    updated[idx].name = e.target.value;
+                                    setRegisterRoster(updated);
+                                  }}
+                                  style={{ flex: 2, padding: '0.4rem 0.6rem', fontSize: '0.8rem', margin: 0 }}
+                                />
+                                <input 
+                                  type="number" 
+                                  className="form-input" 
+                                  placeholder="Age"
+                                  value={player.age}
+                                  onChange={e => {
+                                    const updated = [...registerRoster];
+                                    updated[idx].age = e.target.value;
+                                    setRegisterRoster(updated);
+                                  }}
+                                  style={{ width: '65px', padding: '0.4rem 0.6rem', fontSize: '0.8rem', margin: 0 }}
+                                />
+                                {registerRoster.length > 1 && (
+                                  <button 
+                                    type="button" 
+                                    className="btn btn-secondary btn-sm" 
+                                    style={{ padding: '0.3rem 0.5rem', color: 'var(--red)', margin: 0 }}
+                                    onClick={() => {
+                                      const updated = registerRoster.filter((_, i) => i !== idx);
+                                      setRegisterRoster(updated);
+                                    }}
+                                  >
+                                    ✕
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+
+                          {registerRoster.length < 8 && (
+                            <button 
+                              type="button" 
+                              className="btn btn-secondary btn-sm w-full"
+                              style={{ padding: '0.35rem', fontSize: '0.75rem', margin: 0 }}
+                              onClick={() => setRegisterRoster(prev => [...prev, { name: '', age: '' }])}
+                            >
+                              ＋ Add Player
+                            </button>
+                          )}
+                        </div>
+
                         <button 
                           type="button" 
                           className="btn btn-primary w-full"
@@ -1457,7 +1545,7 @@ export default function Home() {
                         <div key={p.id} className="roster-item">
                           <img className="r-avatar" src={p.avatarDataUrl||PLAYER_AVATAR} alt={p.name} />
                           <div className="r-num">{p.number?'#'+p.number:'—'}</div>
-                          <div className="r-name">{p.name}</div>
+                          <div className="r-name">{p.name} {p.age ? <span style={{ opacity: 0.6, fontSize: '0.78rem', marginLeft: '0.25rem' }}>({p.age} yrs)</span> : ''}</div>
                           {isAdmin && (
                             <div className="player-actions" style={{ marginLeft:'auto', display:'flex', gap:'.35rem' }}>
                               <button
@@ -1468,6 +1556,7 @@ export default function Home() {
                                   setEditingPlayerId(p.id);
                                   setNewPlayerName(p.name);
                                   setNewPlayerNum(p.number || '');
+                                  setNewPlayerAge(p.age || '');
                                   setNewPlayerAvatar(p.avatarDataUrl || '');
                                   setModal('editPlayer');
                                 }}
@@ -1488,7 +1577,7 @@ export default function Home() {
                         </div>
                       ))}
                       {isAdmin && (
-                        <button className="add-player-row" onClick={()=>{ setAddPlayerTeamId(team.id); setNewPlayerName(''); setNewPlayerNum(''); setNewPlayerAvatar(''); setModal('addPlayer'); }}>＋ Add Player</button>
+                        <button className="add-player-row" onClick={()=>{ setAddPlayerTeamId(team.id); setNewPlayerName(''); setNewPlayerNum(''); setNewPlayerAge(''); setNewPlayerAvatar(''); setModal('addPlayer'); }}>＋ Add Player</button>
                       )}
                     </div>
                   </div>
@@ -2173,6 +2262,10 @@ export default function Home() {
               <label className="form-label">Jersey Number</label>
               <input className="form-input" value={newPlayerNum} onChange={e=>setNewPlayerNum(e.target.value)} placeholder="e.g. 7" maxLength={3} />
             </div>
+            <div className="form-group">
+              <label className="form-label">Age</label>
+              <input className="form-input" type="number" value={newPlayerAge} onChange={e=>setNewPlayerAge(e.target.value)} placeholder="e.g. 25" />
+            </div>
             <button className="btn btn-primary w-full" onClick={addPlayer}>Add Player</button>
           </div>
         </div>
@@ -2205,6 +2298,10 @@ export default function Home() {
             <div className="form-group">
               <label className="form-label">Jersey Number</label>
               <input className="form-input" value={newPlayerNum} onChange={e=>setNewPlayerNum(e.target.value)} placeholder="e.g. 7" maxLength={3} />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Age</label>
+              <input className="form-input" type="number" value={newPlayerAge} onChange={e=>setNewPlayerAge(e.target.value)} placeholder="e.g. 25" />
             </div>
             <button className="btn btn-primary w-full" onClick={updatePlayer}>Save Changes</button>
           </div>

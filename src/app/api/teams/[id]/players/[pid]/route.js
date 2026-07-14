@@ -35,7 +35,7 @@ export async function PUT(req, { params }) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const { name, number, avatarDataUrl } = await req.json();
+  const { name, number, age, avatarDataUrl } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
 
   const updatedPlayer = await prisma.vBPlayer.update({
@@ -43,6 +43,7 @@ export async function PUT(req, { params }) {
     data: {
       name: name.trim(),
       number: number || '',
+      age: age ? Number(age) : null,
       avatarDataUrl: avatarDataUrl || null,
     },
   });

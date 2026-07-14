@@ -47,14 +47,32 @@ export async function POST(req) {
   }
 
   const body = await req.json();
-  const { name, color, avatarDataUrl } = body;
+  const { name, color, avatarDataUrl, players } = body;
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
 
   const count = await prisma.vBTeam.count({ where: { userId } });
   if (count >= 8) return NextResponse.json({ error: 'Maximum 8 teams' }, { status: 400 });
 
+  const createData = {
+    name: name.trim(),
+    color: color || '#f97316',
+    avatarDataUrl: avatarDataUrl || null,
+    userId
+  };
+
+  if (players && Array.isArray(players) && players.length > 0) {
+    createData.players = {
+      create: players.map(p => ({
+        name: p.name.trim(),
+        age: p.age ? Number(p.age) : null,
+        number: p.number || '',
+        avatarDataUrl: p.avatarDataUrl || null,
+      }))
+    };
+  }
+
   const team = await prisma.vBTeam.create({
-    data: { name: name.trim(), color: color || '#f97316', avatarDataUrl: avatarDataUrl || null, userId },
+    data: createData,
     include: { players: true },
   });
   return NextResponse.json(team, { status: 201 });

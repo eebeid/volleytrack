@@ -11,11 +11,11 @@ export async function POST(req, { params }) {
   const team = await prisma.vBTeam.findFirst({ where: { id: params.id, userId: session.user.id } });
   if (!team) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { name, number, avatarDataUrl } = await req.json();
+  const { name, number, age, avatarDataUrl } = await req.json();
   if (!name?.trim()) return NextResponse.json({ error: 'Name required' }, { status: 400 });
 
   const player = await prisma.vBPlayer.create({
-    data: { name: name.trim(), number: number || '', avatarDataUrl: avatarDataUrl || null, teamId: params.id },
+    data: { name: name.trim(), number: number || '', age: age ? Number(age) : null, avatarDataUrl: avatarDataUrl || null, teamId: params.id },
   });
   return NextResponse.json(player, { status: 201 });
 }
