@@ -1351,6 +1351,27 @@ export default function Home() {
 
       </main>
 
+      {/* ── Footer ── */}
+      <footer style={{ padding: '2rem 1.25rem 3.5rem', borderTop: '1px solid var(--border)', textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-3)', background: 'rgba(6,9,26,0.2)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', justifyContent: 'center', alignItems: 'center' }}>
+          <span>v1.0 &middot; Bootaleyzee Cup</span>
+          <span style={{ opacity: 0.3 }}>|</span>
+          <span>
+            Developed by{' '}
+            <a
+              href="https://blueechostudios.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--orange)', textDecoration: 'none', fontWeight: 600 }}
+              onMouseEnter={e => e.currentTarget.style.textDecoration = 'underline'}
+              onMouseLeave={e => e.currentTarget.style.textDecoration = 'none'}
+            >
+              blueechostudios.com
+            </a>
+          </span>
+        </div>
+      </footer>
+
       {/* ══════════════════════════════
           MODALS
           ══════════════════════════════ */}
