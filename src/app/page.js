@@ -46,7 +46,7 @@ export default function Home() {
   const isAdmin = status === 'authenticated' && session?.user?.email === 'edebeid@gmail.com';
 
   /* ── State ── */
-  const [view,        setView]        = useState('dashboard');
+  const [view,        setView]        = useState('home');
   const [profile,     setProfile]     = useState({ name:'', avatarDataUrl:'' });
   const [teams,       setTeams]       = useState([]);
   const [tournament,  setTournament]  = useState({ started:false, bracketJson:null, activeMatchId:null, champion:null, gfResetId:null, setTargetPoints:21, set3TargetPoints:15 });
@@ -89,6 +89,16 @@ export default function Home() {
   const [photos, setPhotos] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
+  /* Orders state */
+  const [orders, setOrders] = useState([]);
+  const [orderCaptainName, setOrderCaptainName] = useState('');
+  const [orderMemberNumber, setOrderMemberNumber] = useState('');
+  const [orderHamCount, setOrderHamCount] = useState(0);
+  const [orderTurkeyCount, setOrderTurkeyCount] = useState(0);
+  const [orderEggSaladCount, setOrderEggSaladCount] = useState(0);
+  const [orderDrinkPackages, setOrderDrinkPackages] = useState(0);
+  const [submittingOrder, setSubmittingOrder] = useState(false);
+
   const liveChartRef = useRef(null);
   const toastTimerRef = useRef(null);
 
@@ -119,6 +129,7 @@ export default function Home() {
         ];
         if (status === 'authenticated') {
           promises.push(apiFetch('/api/profile').catch(() => ({ name: '', avatarDataUrl: '' })));
+          promises.push(apiFetch('/api/orders').catch(() => []));
         }
         const results = await Promise.all(promises);
         const ts = results[0];
@@ -126,9 +137,11 @@ export default function Home() {
         const archs = results[2];
         const pts = results[3];
         const prof = status === 'authenticated' ? results[4] : { name: '', avatarDataUrl: '' };
+        const ords = status === 'authenticated' ? results[5] : [];
 
         setArchives(archs);
         setPhotos(pts);
+        setOrders(ords);
         setProfile({ name: prof?.name||session?.user?.name||'', avatarDataUrl: prof?.avatarDataUrl||'' });
         setTeams(ts.map(t => ({ ...t, stats: t.stats || emptyStats() })));
         setTournament({
@@ -399,6 +412,44 @@ export default function Home() {
       showToast('Photo deleted', 'info');
     } catch (e) {
       showToast('Delete failed', 'error');
+    }
+  };
+
+  const submitOrder = async (e) => {
+    e.preventDefault();
+    if (!orderCaptainName.trim()) { showToast('Captain Name is required', 'error'); return; }
+    if (!orderMemberNumber.trim()) { showToast('Member Number is required', 'error'); return; }
+
+    setSubmittingOrder(true);
+    try {
+      await apiFetch('/api/orders', {
+        method: 'POST',
+        body: JSON.stringify({
+          captainName: orderCaptainName,
+          memberNumber: orderMemberNumber,
+          hamCount: orderHamCount,
+          turkeyCount: orderTurkeyCount,
+          eggSaladCount: orderEggSaladCount,
+          drinkPackages: orderDrinkPackages,
+        })
+      });
+
+      if (isAdmin) {
+        const newOrders = await apiFetch('/api/orders');
+        setOrders(newOrders);
+      }
+
+      showToast('Order submitted successfully! 🥪', 'success');
+      setOrderCaptainName('');
+      setOrderMemberNumber('');
+      setOrderHamCount(0);
+      setOrderTurkeyCount(0);
+      setOrderEggSaladCount(0);
+      setOrderDrinkPackages(0);
+    } catch (err) {
+      showToast('Failed to submit order', 'error');
+    } finally {
+      setSubmittingOrder(false);
     }
   };
   const updatePlayer = async () => {
@@ -737,7 +788,7 @@ export default function Home() {
           <span className="nav-title">Bootaleyzee Cup</span>
         </div>
         <div className="nav-tabs">
-          {[['dashboard','📊','Scoreboard'],['bracket','🏆','Bracket'],['schedule','📅','Schedule'],['teams','👥','Teams'],['stats','📈','Stats'],['photos','📷','Photos'],['history','📜','History'],['settings','⚙️','Settings']]
+          {[['home','🏠','Home'],['dashboard','📊','Scoreboard'],['bracket','🏆','Bracket'],['schedule','📅','Schedule'],['teams','👥','Teams'],['stats','📈','Stats'],['photos','📷','Photos'],['history','📜','History'],['settings','⚙️','Settings']]
             .filter(([id]) => id !== 'settings' || isAdmin)
             .map(([id,icon,label])=>(
               <button key={id} className={`nav-tab${view===id?' active':''}`} onClick={()=>setView(id)}>
@@ -764,6 +815,266 @@ export default function Home() {
       </nav>
 
       <main className="main">
+
+        {/* ══════════════════════════════
+            HOME / SPLASH
+            ══════════════════════════════ */}
+        {view==='home' && (
+          <div className="view active" style={{ display:'flex',flexDirection:'column',gap:'2rem' }}>
+            
+            {/* Hero Section */}
+            <div className="glass-card" style={{ 
+              position: 'relative', 
+              padding: '3rem 2rem', 
+              borderRadius: '16px', 
+              overflow: 'hidden', 
+              background: 'linear-gradient(135deg, rgba(8, 26, 19, 0.9) 0%, rgba(13, 44, 32, 0.9) 100%)',
+              border: '1px solid rgba(226, 201, 163, 0.2)',
+              textAlign: 'center',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '1rem'
+            }}>
+              <div style={{ 
+                background: 'var(--orange)', 
+                color: 'var(--bg)', 
+                padding: '0.35rem 1rem', 
+                borderRadius: '50px', 
+                fontSize: '0.75rem', 
+                fontWeight: 900, 
+                letterSpacing: '2px',
+                textTransform: 'uppercase'
+              }}>
+                ⭐ 10 Years of Volleyball Action ⭐
+              </div>
+              
+              <h1 style={{ 
+                fontFamily: 'Outfit, sans-serif', 
+                fontSize: 'clamp(2.5rem, 6vw, 4.5rem)', 
+                fontWeight: 900, 
+                color: '#fff', 
+                margin: 0,
+                letterSpacing: '-2px',
+                lineHeight: 1,
+                textTransform: 'uppercase'
+              }}>
+                Boot<span style={{ color: 'var(--orange)' }}>alayzee</span>
+              </h1>
+              
+              <p style={{ 
+                fontSize: 'clamp(1rem, 2.5vw, 1.4rem)', 
+                color: '#e2c9a3', 
+                fontWeight: 800, 
+                letterSpacing: '3px',
+                textTransform: 'uppercase',
+                margin: '0.5rem 0 1.5rem 0'
+              }}>
+                One Court. One Team. One Legend.
+              </p>
+
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'center', 
+                gap: '2rem', 
+                flexWrap: 'wrap',
+                background: 'rgba(255,255,255,0.03)',
+                padding: '1rem 2rem',
+                borderRadius: '50px',
+                border: '1px solid rgba(255,255,255,0.05)',
+                fontSize: '0.9rem',
+                color: 'var(--text-1)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>📅</span> <strong>August 2nd, 2026</strong>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>⏰</span> <strong>10:00 AM</strong>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span>📍</span> <strong>Country Club of Fairfax</strong>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Requirements Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+              {[
+                { title: 'Min Players', val: '5 Players', desc: 'Required per team', icon: '👥' },
+                { title: 'Max Players', val: '8 Players', desc: 'No size inflation', icon: '👥' },
+                { title: 'Co-Ed', val: 'Both Genders', desc: 'At least one woman', icon: '👩' },
+                { title: 'Veterans', val: '40+ Player', desc: 'At least one required', icon: '🎂' },
+                { title: 'Club Members', val: '2 CCF Members', desc: 'At least two required', icon: '💳' },
+                { title: 'No Outside', val: 'Food/Drinks', desc: 'Strict club policies', icon: '🚫' }
+              ].map((r, i) => (
+                <div key={i} className="glass-card" style={{ padding: '1.25rem', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <div style={{ fontSize: '2rem' }}>{r.icon}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-3)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>{r.title}</div>
+                  <div style={{ fontSize: '1.1rem', color: 'var(--orange)', fontWeight: 800 }}>{r.val}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>{r.desc}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Rules and Event Details Split */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.5rem' }}>
+              
+              {/* Rules List */}
+              <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--orange)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', margin: 0 }}>
+                  🏐 Official Rules
+                </h3>
+                <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  {[
+                    'Teams must include both genders.',
+                    'At least one player over 40 years old.',
+                    'No age restrictions this year on how young you are.',
+                    'Every team must have at least two CCF members.',
+                    'Max 8 players per team roster.',
+                    '5 players minimum on court, maximum of 6.',
+                    'Everyone must play. No ghosting, sandbags, or benchwarmers hiding.',
+                    'Matches are best 2 out of 3 sets.',
+                    'Sets 1 & 2 are first to 21 points (win by 2).',
+                    'Set 3 (if needed) is first to 15 points (win by 2).'
+                  ].map((rule, idx) => (
+                    <li key={idx} style={{ fontSize: '0.85rem', color: 'var(--text-2)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                      <span style={{ color: 'var(--orange)' }}>🏐</span>
+                      <span>{rule}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Order Form & Pricing Estimator */}
+              <div className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--orange)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', margin: 0 }}>
+                    🥪 Team Order Form
+                  </h3>
+                  <p style={{ fontSize: '0.75rem', color: 'var(--text-2)', marginTop: '0.25rem' }}>
+                    Calculate and submit your team's lunch and beverage package. Teams register and order by <strong>July 22nd</strong>.
+                  </p>
+                </div>
+
+                <form onSubmit={submitOrder} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>Captain Name</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="Edmond Ebeid" 
+                        value={orderCaptainName}
+                        onChange={e => setOrderCaptainName(e.target.value)} 
+                        required 
+                      />
+                    </div>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontSize: '0.75rem' }}>CCF Member #</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="E.g., 1947" 
+                        value={orderMemberNumber}
+                        onChange={e => setOrderMemberNumber(e.target.value)} 
+                        required 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Lunch Choice Quantities */}
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#fff', display: 'block', marginBottom: '0.5rem' }}>
+                      Boxed Lunches ($10/each)
+                    </span>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--text-3)', display: 'block', marginBottom: '0.5rem' }}>
+                      Includes: Sandwich + Rosemary Chips + Cookie + Bottled Water
+                    </span>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                      {[
+                        { label: 'Ham Lunch', state: orderHamCount, setter: setOrderHamCount },
+                        { label: 'Turkey Lunch', state: orderTurkeyCount, setter: setOrderTurkeyCount },
+                        { label: 'Egg Salad Lunch', state: orderEggSaladCount, setter: setOrderEggSaladCount }
+                      ].map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-2)' }}>{item.label}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.1rem 0.4rem' }} onClick={() => item.setter(Math.max(0, item.state - 1))}>-</button>
+                            <span style={{ fontSize: '0.85rem', width: '20px', textAlign: 'center', color: '#fff', fontWeight: 800 }}>{item.state}</span>
+                            <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.1rem 0.4rem' }} onClick={() => item.setter(item.state + 1)}>+</button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Beverage Packages */}
+                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#fff', display: 'block' }}>
+                          Beverage Package ($10/pkg)
+                        </span>
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-3)' }}>
+                          3 drinks package
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.1rem 0.4rem' }} onClick={() => setOrderDrinkPackages(Math.max(0, orderDrinkPackages - 1))}>-</button>
+                        <span style={{ fontSize: '0.85rem', width: '20px', textAlign: 'center', color: '#fff', fontWeight: 800 }}>{orderDrinkPackages}</span>
+                        <button type="button" className="btn btn-secondary btn-sm" style={{ padding: '0.1rem 0.4rem' }} onClick={() => setOrderDrinkPackages(orderDrinkPackages + 1)}>+</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Pricing Calculation Summary */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0', borderTop: '1px solid var(--border)' }}>
+                    <span style={{ fontSize: '0.85rem', color: 'var(--text-2)' }}>Total Cost:</span>
+                    <span style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--orange)' }}>
+                      ${(orderHamCount + orderTurkeyCount + orderEggSaladCount) * 10 + orderDrinkPackages * 10}
+                    </span>
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    className="btn btn-primary w-full"
+                    disabled={submittingOrder || (!orderHamCount && !orderTurkeyCount && !orderEggSaladCount && !orderDrinkPackages)}
+                  >
+                    {submittingOrder ? 'Submitting...' : 'Submit Lunch & Drink Order'}
+                  </button>
+                </form>
+              </div>
+
+            </div>
+
+            {/* Costumes alert & Contact Split */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+              
+              <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', borderLeft: '4px solid var(--orange)' }}>
+                <div style={{ fontSize: '2.25rem' }}>🎭</div>
+                <div>
+                  <h4 style={{ margin: 0, fontWeight: 900, color: '#fff' }}>Costumes & Flair!</h4>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-2)' }}>
+                    Costumes, team names, and creative flair are strongly encouraged. Bragging rights last all year!
+                  </p>
+                </div>
+              </div>
+
+              <div className="glass-card" style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                <div style={{ fontSize: '2.25rem' }}>📞</div>
+                <div>
+                  <h4 style={{ margin: 0, fontWeight: 900, color: '#fff' }}>Contact Organizer</h4>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-2)' }}>
+                    Edmond Ebeid &middot; 703-798-9744 &middot; edebeid@gmail.com
+                  </p>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        )}
 
         {/* ══════════════════════════════
             DASHBOARD
@@ -1594,6 +1905,70 @@ export default function Home() {
                     {saving ? 'Generating...' : 'Generate Teams & Rosters'}
                   </button>
                 </div>
+              </div>
+
+              {/* Food & Beverage Orders list */}
+              <div className="glass-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--orange)', margin: 0 }}>🥪 Team Food & Beverage Orders</h3>
+                  {orders.length > 0 && (
+                    <button 
+                      className="btn btn-sm btn-danger" 
+                      style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                      onClick={async () => {
+                        if (window.confirm("Are you sure you want to clear all team orders?")) {
+                          try {
+                            await apiFetch('/api/orders', { method: 'DELETE' });
+                            setOrders([]);
+                            showToast("All orders cleared", "info");
+                          } catch (e) {
+                            showToast("Failed to clear orders", "error");
+                          }
+                        }
+                      }}
+                    >
+                      Clear All
+                    </button>
+                  )}
+                </div>
+
+                {orders.length === 0 ? (
+                  <p style={{ fontSize: '.85rem', color: 'var(--text-3)', margin: 0 }}>
+                    No team orders submitted yet.
+                  </p>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="stats-table">
+                      <thead>
+                        <tr>
+                          <th>Captain (Member #)</th>
+                          <th>Ham</th>
+                          <th>Turkey</th>
+                          <th>Egg Salad</th>
+                          <th>Drinks Pkg</th>
+                          <th>Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orders.map((ord) => (
+                          <tr key={ord.id}>
+                            <td>
+                              <div style={{ fontWeight: 700, color: '#fff' }}>{ord.captainName}</div>
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-3)' }}>#{ord.memberNumber}</div>
+                            </td>
+                            <td>{ord.hamCount}</td>
+                            <td>{ord.turkeyCount}</td>
+                            <td>{ord.eggSaladCount}</td>
+                            <td>{ord.drinkPackages}</td>
+                            <td style={{ fontWeight: 800, color: 'var(--orange)' }}>
+                              ${(ord.hamCount + ord.turkeyCount + ord.eggSaladCount) * 10 + ord.drinkPackages * 10}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
 
               {/* Data Actions */}

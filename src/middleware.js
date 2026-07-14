@@ -20,7 +20,8 @@ export default function middleware(req) {
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/auth/') ||
     (req.method === 'GET' && (pathname === '/api/teams' || pathname === '/api/tournament' || pathname === '/api/tournament/archive')) ||
-    pathname === '/api/photos';
+    pathname === '/api/photos' ||
+    (req.method === 'POST' && pathname === '/api/orders');
 
   if (!isPublic) {
     const sessionCookie =

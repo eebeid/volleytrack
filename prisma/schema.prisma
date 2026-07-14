@@ -50,6 +50,7 @@ model User {
   tournament        VBTournament?
   tournamentHistory VBTournamentArchive[]
   photos            VBPhoto[]
+  orders            VBOrder[]
 }
 
 model VerificationToken {
@@ -123,6 +124,21 @@ model VBPhoto {
   dataUrl   String   @db.Text
   caption   String?  @default("")
   createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model VBOrder {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  captainName      String
+  memberNumber     String
+  hamCount         Int      @default(0)
+  turkeyCount      Int      @default(0)
+  eggSaladCount    Int      @default(0)
+  drinkPackages    Int      @default(0)
+  createdAt        DateTime @default(now())
 
   @@index([userId])
 }
