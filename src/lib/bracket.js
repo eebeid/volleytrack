@@ -5,7 +5,11 @@
 
 'use strict';
 
-export function generateBracket(teamIds) {
+export function generateBracket(teamIds, format = 'double_elimination') {
+  if (format === 'round_robin') {
+    return generateRoundRobinBracket(teamIds);
+  }
+
   const n   = teamIds.length;
   const pow = Math.ceil(Math.log2(Math.max(n, 2)));
   const sz  = Math.pow(2, pow);
@@ -170,10 +174,64 @@ export function generateBracket(teamIds) {
   const newLbRounds = lbRounds.map(r => r.map(m => oldToNew[m.id]));
   const newGfId = gf ? oldToNew[gf.id] : null;
 
-  return { matches: sortedMatches, wbRounds: newWbRounds, lbRounds: newLbRounds, gfId: newGfId, pow, sz };
+  return { format: 'double_elimination', matches: sortedMatches, wbRounds: newWbRounds, lbRounds: newLbRounds, gfId: newGfId, pow, sz };
 }
 
-export function propagate(matches) {
+export function generateRoundRobinBracket(teamIds) {
+  let nextId = 1;
+  const mkMatch = (bracket, round, t1, t2) => ({
+    id: nextId++, bracket, round,
+    team1: t1, team2: t2,
+    sets: [], currentSet: 0, setsWon: [0, 0],
+    winner: null, loser: null, complete: false,
+  });
+
+  const teams = [...teamIds];
+  if (teams.length % 2 !== 0) {
+    teams.push(null); // BYE
+  }
+
+  const numTeams = teams.length;
+  const roundsCount = numTeams - 1;
+  const half = numTeams / 2;
+  const rrMatches = [];
+  const rrRounds = [];
+
+  let pool = [...teams];
+
+  for (let r = 1; r <= roundsCount; r++) {
+    const roundMatches = [];
+    for (let i = 0; i < half; i++) {
+      const t1 = pool[i];
+      const t2 = pool[numTeams - 1 - i];
+      if (t1 !== null && t2 !== null) {
+        const m = mkMatch('RR', r, t1, t2);
+        roundMatches.push(m);
+        rrMatches.push(m);
+      }
+    }
+    rrRounds.push(roundMatches.map(m => m.id));
+    // Rotate pool (keep first element fixed)
+    pool = [pool[0], pool[numTeams - 1], ...pool.slice(1, numTeams - 1)];
+  }
+
+  // Championship Playoff Final match between Top 2 teams
+  const gf = mkMatch('GF', 1, null, null);
+  gf.feedRR = true;
+  const allMatches = [...rrMatches, gf];
+
+  propagate(allMatches, 'round_robin', teamIds);
+
+  return {
+    format: 'round_robin',
+    matches: allMatches,
+    rrRounds,
+    gfId: gf.id,
+    sz: teamIds.length
+  };
+}
+
+export function propagate(matches, format = 'double_elimination', teamIds = []) {
   let changed = true;
   let passes  = 0;
   while (changed && passes < 30) {
@@ -220,6 +278,69 @@ export function propagate(matches) {
       if (m.team1 !== prev1 || m.team2 !== prev2) changed = true;
     }
   }
+
+  // Round Robin Top-2 propagation to Grand Final
+  if (format === 'round_robin' || matches.some(m => m.feedRR)) {
+    const gf = matches.find(m => m.bracket === 'GF');
+    if (gf && !gf.complete) {
+      const rrMatches = matches.filter(m => m.bracket === 'RR');
+      const allRRComplete = rrMatches.length > 0 && rrMatches.every(m => m.complete);
+      if (allRRComplete) {
+        // Calculate standings from RR matches
+        const statsMap = {};
+        rrMatches.forEach(m => {
+          if (!m.winner) return;
+          const winnerId = m.winner;
+          const loserId = m.loser;
+          if (!statsMap[winnerId]) statsMap[winnerId] = { wins: 0, losses: 0, setsWon: 0, setsLost: 0, pointsFor: 0, pointsAgainst: 0 };
+          if (!statsMap[loserId]) statsMap[loserId] = { wins: 0, losses: 0, setsWon: 0, setsLost: 0, pointsFor: 0, pointsAgainst: 0 };
+
+          statsMap[winnerId].wins += 1;
+          statsMap[loserId].losses += 1;
+
+          const isT1Winner = m.winner === m.team1;
+          const wSets = isT1Winner ? m.setsWon[0] : m.setsWon[1];
+          const lSets = isT1Winner ? m.setsWon[1] : m.setsWon[0];
+          statsMap[winnerId].setsWon += wSets;
+          statsMap[winnerId].setsLost += lSets;
+          statsMap[loserId].setsWon += lSets;
+          statsMap[loserId].setsLost += wSets;
+
+          let wPts = 0, lPts = 0;
+          m.sets.forEach(s => {
+            wPts += isT1Winner ? s.t1 : s.t2;
+            lPts += isT1Winner ? s.t2 : s.t1;
+          });
+          statsMap[winnerId].pointsFor += wPts;
+          statsMap[winnerId].pointsAgainst += lPts;
+          statsMap[loserId].pointsFor += lPts;
+          statsMap[loserId].pointsAgainst += wPts;
+        });
+
+        // Get unique team IDs participating in RR
+        const teamIdSet = new Set();
+        rrMatches.forEach(m => { if (m.team1) teamIdSet.add(m.team1); if (m.team2) teamIdSet.add(m.team2); });
+        const rrTeamIds = Array.from(teamIdSet);
+
+        const sorted = rrTeamIds.sort((a, b) => {
+          const stA = statsMap[a] || { wins:0, setsWon:0, setsLost:0, pointsFor:0, pointsAgainst:0 };
+          const stB = statsMap[b] || { wins:0, setsWon:0, setsLost:0, pointsFor:0, pointsAgainst:0 };
+          if (stA.wins !== stB.wins) return stB.wins - stA.wins;
+          const diffA = stA.setsWon - stA.setsLost;
+          const diffB = stB.setsWon - stB.setsLost;
+          if (diffA !== diffB) return diffB - diffA;
+          return (stB.pointsFor - stB.pointsAgainst) - (stA.pointsFor - stA.pointsAgainst);
+        });
+
+        if (sorted.length >= 2) {
+          if (gf.team1 !== sorted[0] || gf.team2 !== sorted[1]) {
+            gf.team1 = sorted[0];
+            gf.team2 = sorted[1];
+          }
+        }
+      }
+    }
+  }
 }
 
 function autoCompleteBye(m) {
@@ -241,3 +362,4 @@ function getSeedOrder(n) {
   for (const t of top) { out.push(t); out.push(n - 1 - t); }
   return out;
 }
+

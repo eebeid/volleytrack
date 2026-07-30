@@ -50,6 +50,7 @@ export default function Home() {
   const [profile,     setProfile]     = useState({ name:'', avatarDataUrl:'' });
   const [teams,       setTeams]       = useState([]);
   const [tournament,  setTournament]  = useState({ started:false, bracketJson:null, activeMatchId:null, champion:null, gfResetId:null, setTargetPoints:21, set3TargetPoints:15 });
+  const [tournamentFormat, setTournamentFormat] = useState('double_elimination');
   const [toast,       setToast]       = useState({ msg:'', type:'', show:false });
   const [modal,       setModal]       = useState(null);   // current open modal id
   const [loading,     setLoading]     = useState(true);
@@ -148,6 +149,9 @@ export default function Home() {
         setOrders(ords);
         setProfile({ name: prof?.name||session?.user?.name||'', avatarDataUrl: prof?.avatarDataUrl||'' });
         setTeams(ts.map(t => ({ ...t, stats: t.stats || emptyStats() })));
+        if (tourn.bracketJson?.format) {
+          setTournamentFormat(tourn.bracketJson.format);
+        }
         setTournament({
           started:      tourn.started      ?? false,
           bracketJson:  tourn.bracketJson  ?? null,
@@ -302,12 +306,99 @@ export default function Home() {
   };
 
   const deleteTeam = async (teamId) => {
+    const targetTeam = teams.find(t => t.id === teamId);
+    if (!targetTeam) return;
+
+    if (tournament.started) {
+      if (!window.confirm(`Are you sure you want to delete "${targetTeam.name}"? This will delete the team and reseed the tournament bracket with the remaining teams.`)) {
+        return;
+      }
+    } else {
+      if (!window.confirm(`Are you sure you want to delete "${targetTeam.name}"?`)) {
+        return;
+      }
+    }
+
     try {
-      await apiFetch(`/api/teams/${teamId}`, { method:'DELETE' });
-      setTeams(prev => prev.filter(t => t.id !== teamId));
-      showToast('Team removed','info');
-    } catch(e) { showToast(e.message,'error'); }
+      await apiFetch(`/api/teams/${teamId}`, { method: 'DELETE' });
+      const remainingTeams = teams.filter(t => t.id !== teamId);
+
+      if (tournament.started) {
+        if (remainingTeams.length >= 2) {
+          const resetTeams = remainingTeams.map(t => ({ ...t, stats: emptyStats() }));
+          setTeams(resetTeams);
+
+          const fmt = tournament.bracketJson?.format || tournamentFormat || 'double_elimination';
+          const newBracket = generateBracket(resetTeams.map(t => t.id), fmt);
+          newBracket.startTime = tournament.bracketJson?.startTime || "10:00";
+          newBracket.matchDuration = tournament.bracketJson?.matchDuration || 25;
+          const newTourn = {
+            started: true,
+            bracketJson: newBracket,
+            activeMatchId: null,
+            champion: null,
+            gfResetId: null,
+            setTargetPoints: tournament.setTargetPoints,
+            set3TargetPoints: tournament.set3TargetPoints
+          };
+          setTournament(newTourn);
+          await saveTournament(newTourn);
+          showToast(`Team "${targetTeam.name}" deleted and bracket reseeded!`, 'info');
+        } else {
+          setTeams(remainingTeams);
+          await apiFetch('/api/tournament', { method: 'DELETE' });
+          setTournament({
+            started: false,
+            bracketJson: null,
+            activeMatchId: null,
+            champion: null,
+            gfResetId: null,
+            setTargetPoints: tournament.setTargetPoints,
+            set3TargetPoints: tournament.set3TargetPoints
+          });
+          showToast(`Team "${targetTeam.name}" deleted. Tournament reset (need at least 2 teams).`, 'info');
+        }
+      } else {
+        setTeams(remainingTeams);
+        showToast(`Team "${targetTeam.name}" removed`, 'info');
+      }
+    } catch(e) {
+      showToast(e.message, 'error');
+    }
   };
+
+  const reseedBracket = async (targetFormat = null) => {
+    if (!isAdmin) return;
+    if (teams.length < 2) { showToast('Need at least 2 teams to seed bracket!', 'error'); return; }
+    
+    const fmt = targetFormat || tournamentFormat || tournament.bracketJson?.format || 'double_elimination';
+    const fmtLabel = fmt === 'round_robin' ? 'Round Robin + Top 2 Playoff' : 'Double Elimination';
+
+    if (!window.confirm(`Are you sure you want to reseed the tournament as ${fmtLabel}? This will reset match progress and generate a new bracket with all current teams.`)) return;
+
+    try {
+      const resetTeams = teams.map(t => ({ ...t, stats: emptyStats() }));
+      setTeams(resetTeams);
+
+      const newBracket = generateBracket(resetTeams.map(t => t.id), fmt);
+      newBracket.startTime = tournament.bracketJson?.startTime || "10:00";
+      newBracket.matchDuration = tournament.bracketJson?.matchDuration || 25;
+      const newTourn = {
+        started: true,
+        bracketJson: newBracket,
+        activeMatchId: null,
+        champion: null,
+        gfResetId: null,
+        setTargetPoints: tournament.setTargetPoints,
+        set3TargetPoints: tournament.set3TargetPoints
+      };
+      setTournament(newTourn);
+      setTournamentFormat(fmt);
+      await saveTournament(newTourn);
+      showToast(`Bracket reseeded as ${fmtLabel}! 🏐`, 'success');
+    } catch(e) { showToast(e.message, 'error'); }
+  };
+
 
   const clearAllTeams = async () => {
     try {
@@ -491,13 +582,13 @@ export default function Home() {
   /* ═══════════════════════════════════════════════════════════
      TOURNAMENT
      ═══════════════════════════════════════════════════════════ */
-  const startTournament = async () => {
+  const startTournament = async (fmt = tournamentFormat) => {
     if (!isAdmin) return;
     if (teams.length < 2) { showToast('Add at least 2 teams first!','error'); setView('teams'); return; }
     const resetTeams = teams.map(t => ({ ...t, stats: emptyStats() }));
     setTeams(resetTeams);
 
-    const newBracket = generateBracket(resetTeams.map(t=>t.id));
+    const newBracket = generateBracket(resetTeams.map(t=>t.id), fmt);
     newBracket.startTime = "10:00";
     newBracket.matchDuration = 25;
     const newTourn = {
@@ -511,7 +602,7 @@ export default function Home() {
     };
     setTournament(newTourn);
     await saveTournament(newTourn);
-    showToast('Tournament started! 🏐','success');
+    showToast(`Tournament started (${fmt === 'round_robin' ? 'Round Robin + Playoff' : 'Double Elimination'})! 🏐`,'success');
     setView('bracket');
   };
 
@@ -600,7 +691,7 @@ export default function Home() {
       return nm;
     })());
 
-    propagate(newMatches);
+    propagate(newMatches, bracket?.format, teams.map(t => t.id));
 
     // After propagation — check if the completed match needs GF handling
     const completedMatch = newMatches.find(m => m.id === match.id);
@@ -786,6 +877,12 @@ export default function Home() {
   const t2Obj    = teams.find(t=>t.id===match?.team2);
   const champObj = tournament.champion ? teams.find(t=>t.id===tournament.champion) : null;
   const isPastRegistrationDeadline = new Date() > new Date('2026-07-22T23:59:59');
+
+  const rrRoundsCount = allMatches.length > 0 ? Math.max(...allMatches.filter(m => m.bracket === 'RR').map(m => m.round), 0) : 0;
+  const rr = [];
+  for (let r = 1; r <= rrRoundsCount; r++) {
+    rr.push(allMatches.filter(m => m.bracket === 'RR' && m.round === r).sort((a, b) => a.id - b.id));
+  }
 
   const wbRoundsCount = allMatches.length > 0 ? Math.max(...allMatches.filter(m => m.bracket === 'W').map(m => m.round), 0) : 0;
   const wb = [];
@@ -1393,12 +1490,34 @@ export default function Home() {
             <div className="view-header">
               <div>
                 <h1 className="view-title">Tournament Bracket</h1>
-                <div className="view-subtitle">Double Elimination · Best of 3 Sets</div>
+                <div className="view-subtitle">{bracket?.format === 'round_robin' ? 'Round Robin + Top 2 Playoff Final · Best of 3 Sets' : 'Double Elimination · Best of 3 Sets'}</div>
               </div>
-              <div className="bracket-legend">
-                <span className="leg winners">Winners</span>
-                <span className="leg losers">Losers</span>
-                <span className="leg gf">Grand Final</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                {isAdmin && tournament.started && (
+                  <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                    <button
+                      className={`btn btn-sm ${bracket?.format === 'double_elimination' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => reseedBracket('double_elimination')}
+                      title="Reseed existing teams as Double Elimination"
+                    >
+                      🏆 Double Elim
+                    </button>
+                    <button
+                      className={`btn btn-sm ${bracket?.format === 'round_robin' ? 'btn-primary' : 'btn-secondary'}`}
+                      onClick={() => reseedBracket('round_robin')}
+                      title="Reseed existing teams as Round Robin + Playoff"
+                    >
+                      🔄 Round Robin
+                    </button>
+                  </div>
+                )}
+                {bracket?.format !== 'round_robin' && (
+                  <div className="bracket-legend">
+                    <span className="leg winners">Winners</span>
+                    <span className="leg losers">Losers</span>
+                    <span className="leg gf">Grand Final</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -1406,44 +1525,83 @@ export default function Home() {
               {!tournament.started ? (
                 <div className="empty-state">
                   <div className="empty-icon">🏆</div>
-                  <p>{isAdmin ? 'Start the tournament to generate the bracket.' : 'Waiting for the admin to start the tournament.'}</p>
-                  {isAdmin && <button className="btn btn-primary" onClick={startTournament}>Start Tournament</button>}
+                  <p>{isAdmin ? 'Select a format and start the tournament to generate matches.' : 'Waiting for the admin to start the tournament.'}</p>
+                  {isAdmin && (
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'1rem', marginTop:'0.5rem' }}>
+                      <div style={{ display:'flex', gap:'1.5rem', background:'rgba(255,255,255,0.04)', padding:'.6rem 1.2rem', borderRadius:'10px', border:'1px solid var(--border)' }}>
+                        <label style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:'.5rem', fontWeight: tournamentFormat==='double_elimination'?700:400, color: tournamentFormat==='double_elimination'?'var(--orange)':'#fff' }}>
+                          <input type="radio" name="tournamentFormat" value="double_elimination" checked={tournamentFormat==='double_elimination'} onChange={()=>setTournamentFormat('double_elimination')} />
+                          🏆 Double Elimination
+                        </label>
+                        <label style={{ cursor:'pointer', display:'flex', alignItems:'center', gap:'.5rem', fontWeight: tournamentFormat==='round_robin'?700:400, color: tournamentFormat==='round_robin'?'var(--orange)':'#fff' }}>
+                          <input type="radio" name="tournamentFormat" value="round_robin" checked={tournamentFormat==='round_robin'} onChange={()=>setTournamentFormat('round_robin')} />
+                          🔄 Round Robin + Top 2 Playoff
+                        </label>
+                      </div>
+                      <button className="btn btn-primary" onClick={() => startTournament(tournamentFormat)}>Start Tournament</button>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
-                  {/* Winners */}
-                  {wb.length>0 && <BracketSection title="Winners Bracket" labelClass="wb" rounds={wb} matchClass="wb-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />}
-                  {/* Losers */}
-                  {lb.length>0 && <BracketSection title="Losers Bracket"  labelClass="lb" rounds={lb} matchClass="lb-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />}
-                  {/* GF */}
-                  {gf && (
-                    <div className="bracket-section">
-                      <div className="bracket-section-label gf-label">🏆 Grand Final</div>
-                      <div className="bracket-row">
-                        <div className="bracket-col">
-                          <BracketMatchCard m={gf} cls="gf-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />
+                  {bracket?.format === 'round_robin' ? (
+                    <>
+                      {rr.length > 0 && <BracketSection title="Round Robin Matches" labelClass="wb" rounds={rr} matchClass="wb-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />}
+                      {gf && (
+                        <div className="bracket-section">
+                          <div className="bracket-section-label gf-label">🏆 Championship Playoff Final (Top 2 Teams)</div>
+                          <div className="bracket-row">
+                            <div className="bracket-col">
+                              <BracketMatchCard m={gf} cls="gf-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
-                  {/* GFR */}
-                  {gfr && (
-                    <div className="bracket-section">
-                      <div className="bracket-section-label gf-label">🔥 Grand Final Reset</div>
-                      <div className="bracket-row">
-                        <div className="bracket-col">
-                          <BracketMatchCard m={gfr} cls="gfr-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />
+                      )}
+                      {champObj && (
+                        <div className="bracket-section">
+                          <div style={{ display:'flex',alignItems:'center',gap:'.75rem',padding:'.75rem 1.1rem',background:'var(--orange-dim)',border:'1px solid rgba(249,115,22,.3)',borderRadius:'12px',fontWeight:800,color:'var(--orange)' }}>
+                            🏆 Tournament Champion: {champObj.name}
+                          </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
-                  {/* Champion */}
-                  {champObj && (
-                    <div className="bracket-section">
-                      <div style={{ display:'flex',alignItems:'center',gap:'.75rem',padding:'.75rem 1.1rem',background:'var(--orange-dim)',border:'1px solid rgba(249,115,22,.3)',borderRadius:'12px',fontWeight:800,color:'var(--orange)' }}>
-                        🏆 Tournament Champion: {champObj.name}
-                      </div>
-                    </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      {/* Winners */}
+                      {wb.length>0 && <BracketSection title="Winners Bracket" labelClass="wb" rounds={wb} matchClass="wb-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />}
+                      {/* Losers */}
+                      {lb.length>0 && <BracketSection title="Losers Bracket"  labelClass="lb" rounds={lb} matchClass="lb-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />}
+                      {/* GF */}
+                      {gf && (
+                        <div className="bracket-section">
+                          <div className="bracket-section-label gf-label">🏆 Grand Final</div>
+                          <div className="bracket-row">
+                            <div className="bracket-col">
+                              <BracketMatchCard m={gf} cls="gf-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {/* GFR */}
+                      {gfr && (
+                        <div className="bracket-section">
+                          <div className="bracket-section-label gf-label">🔥 Grand Final Reset</div>
+                          <div className="bracket-row">
+                            <div className="bracket-col">
+                              <BracketMatchCard m={gfr} cls="gfr-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {/* Champion */}
+                      {champObj && (
+                        <div className="bracket-section">
+                          <div style={{ display:'flex',alignItems:'center',gap:'.75rem',padding:'.75rem 1.1rem',background:'var(--orange-dim)',border:'1px solid rgba(249,115,22,.3)',borderRadius:'12px',fontWeight:800,color:'var(--orange)' }}>
+                            🏆 Tournament Champion: {champObj.name}
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -1533,9 +1691,9 @@ export default function Home() {
                           {tournament.started ? `${team.stats.wins}W–${team.stats.losses}L · ${team.stats.pointsFor} pts` : `${team.players.length} player${team.players.length!==1?'s':''}`}
                         </div>
                       </div>
-                      {isAdmin && !tournament.started && (
+                      {isAdmin && (
                         <div className="tc-actions">
-                          <button className="btn btn-sm btn-danger" onClick={()=>deleteTeam(team.id)}>✕</button>
+                          <button className="btn btn-sm btn-danger" onClick={()=>deleteTeam(team.id)} title="Delete Team">✕</button>
                         </div>
                       )}
                     </div>
@@ -2144,9 +2302,20 @@ export default function Home() {
 
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
                   {tournament.started && (
-                    <button className="btn btn-danger" onClick={() => setModal('confirmReset')}>
-                      Reset Tournament (Clear Scores)
-                    </button>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-1)' }}>Reseed Bracket with Existing Teams:</div>
+                      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <button className="btn btn-secondary" onClick={() => reseedBracket('double_elimination')}>
+                          🏆 Reseed as Double Elimination
+                        </button>
+                        <button className="btn btn-secondary" onClick={() => reseedBracket('round_robin')}>
+                          🔄 Reseed as Round Robin + Top 2 Playoff
+                        </button>
+                        <button className="btn btn-danger" onClick={() => setModal('confirmReset')}>
+                          Reset Tournament (Clear Scores)
+                        </button>
+                      </div>
+                    </div>
                   )}
 
                   <button 
