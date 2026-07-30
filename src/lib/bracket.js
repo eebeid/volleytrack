@@ -215,10 +215,15 @@ export function generateRoundRobinBracket(teamIds) {
     pool = [pool[0], pool[numTeams - 1], ...pool.slice(1, numTeams - 1)];
   }
 
+  // 3rd Place Match between 3rd and 4th place teams
+  const thirdPlaceMatch = mkMatch('3P', 1, null, null);
+  thirdPlaceMatch.feedRR = true;
+
   // Championship Playoff Final match between Top 2 teams
   const gf = mkMatch('GF', 1, null, null);
   gf.feedRR = true;
-  const allMatches = [...rrMatches, gf];
+
+  const allMatches = [...rrMatches, thirdPlaceMatch, gf];
 
   propagate(allMatches, 'round_robin', teamIds);
 
@@ -226,6 +231,7 @@ export function generateRoundRobinBracket(teamIds) {
     format: 'round_robin',
     matches: allMatches,
     rrRounds,
+    thirdPlaceId: thirdPlaceMatch.id,
     gfId: gf.id,
     sz: teamIds.length
   };
@@ -286,10 +292,11 @@ export function propagate(matches, format = 'double_elimination', teamIds = []) 
     }
   }
 
-  // Round Robin Top-2 propagation to Grand Final
+  // Round Robin Top-4 propagation to 3rd Place Match & Grand Final
   if (format === 'round_robin' || matches.some(m => m.feedRR)) {
     const gf = matches.find(m => m.bracket === 'GF');
-    if (gf && !gf.complete) {
+    const thirdPlaceMatch = matches.find(m => m.bracket === '3P');
+    if ((gf && !gf.complete) || (thirdPlaceMatch && !thirdPlaceMatch.complete)) {
       const rrMatches = matches.filter(m => m.bracket === 'RR');
       const allRRComplete = rrMatches.length > 0 && rrMatches.every(m => m.complete);
       if (allRRComplete) {
@@ -333,16 +340,23 @@ export function propagate(matches, format = 'double_elimination', teamIds = []) 
           const stA = statsMap[a] || { wins:0, setsWon:0, setsLost:0, pointsFor:0, pointsAgainst:0 };
           const stB = statsMap[b] || { wins:0, setsWon:0, setsLost:0, pointsFor:0, pointsAgainst:0 };
           if (stA.wins !== stB.wins) return stB.wins - stA.wins;
+          if (stA.pointsFor !== stB.pointsAgainst && stA.pointsFor !== stB.pointsFor) return stB.pointsFor - stA.pointsFor;
           const diffA = stA.setsWon - stA.setsLost;
           const diffB = stB.setsWon - stB.setsLost;
           if (diffA !== diffB) return diffB - diffA;
           return (stB.pointsFor - stB.pointsAgainst) - (stA.pointsFor - stA.pointsAgainst);
         });
 
-        if (sorted.length >= 2) {
+        if (sorted.length >= 2 && gf && !gf.complete) {
           if (gf.team1 !== sorted[0] || gf.team2 !== sorted[1]) {
             gf.team1 = sorted[0];
             gf.team2 = sorted[1];
+          }
+        }
+        if (sorted.length >= 4 && thirdPlaceMatch && !thirdPlaceMatch.complete) {
+          if (thirdPlaceMatch.team1 !== sorted[2] || thirdPlaceMatch.team2 !== sorted[3]) {
+            thirdPlaceMatch.team1 = sorted[2];
+            thirdPlaceMatch.team2 = sorted[3];
           }
         }
       }

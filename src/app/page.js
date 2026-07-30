@@ -21,6 +21,7 @@ const hexToRgba = (hex, a) => {
 };
 
 function matchLabel(m) {
+  if (m.bracket==='3P')  return '🥉 3rd Place Match';
   if (m.bracket==='GF')  return '🏆 Grand Final';
   if (m.bracket==='GFR') return '🔥 Grand Final Reset';
   return `${m.bracket==='W'?'Winners':'Losers'} Bracket · Round ${m.round}`;
@@ -896,6 +897,7 @@ export default function Home() {
     lb.push(allMatches.filter(m => m.bracket === 'L' && m.round === r).sort((a, b) => a.id - b.id));
   }
   const gf = allMatches.find(m=>m.id===bracket?.gfId);
+  const thirdPlaceMatch = allMatches.find(m=>m.id===bracket?.thirdPlaceId || m.bracket==='3P');
   const gfr = tournament.gfResetId ? allMatches.find(m=>m.id===tournament.gfResetId) : null;
 
   return (
@@ -1547,6 +1549,16 @@ export default function Home() {
                   {bracket?.format === 'round_robin' ? (
                     <>
                       {rr.length > 0 && <BracketSection title="Round Robin Matches" labelClass="wb" rounds={rr} matchClass="wb-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />}
+                      {thirdPlaceMatch && (
+                        <div className="bracket-section">
+                          <div className="bracket-section-label lb-label">🥉 3rd Place Match (3rd vs 4th Seed)</div>
+                          <div className="bracket-row">
+                            <div className="bracket-col">
+                              <BracketMatchCard m={thirdPlaceMatch} cls="lb-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       {gf && (
                         <div className="bracket-section">
                           <div className="bracket-section-label gf-label">🏆 Championship Playoff Final (Top 2 Teams)</div>
@@ -1688,7 +1700,7 @@ export default function Home() {
                           </div>
                         )}
                         <div className="tc-meta">
-                          {tournament.started ? `${team.stats.wins}W–${team.stats.losses}L · ${team.stats.pointsFor} pts` : `${team.players.length} player${team.players.length!==1?'s':''}`}
+                          {tournament.started ? `${team.stats.wins} pts (${team.stats.wins}W–${team.stats.losses}L · ${team.stats.pointsFor} scored)` : `${team.players.length} player${team.players.length!==1?'s':''}`}
                         </div>
                       </div>
                       {isAdmin && (
@@ -1755,28 +1767,48 @@ export default function Home() {
             </div>
             <div className="stats-layout">
               <div className="glass-card chart-card">
-                <div className="chart-card-header"><h3 className="chart-title">Points Scored</h3></div>
+                <div className="chart-card-header"><h3 className="chart-title">Points Scored (In-Game)</h3></div>
                 <canvas ref={el=>{ if(el && teams.length>0) setTimeout(()=>drawStatsChart(el,'pointsFor'),0); }} />
               </div>
               <div className="glass-card chart-card">
-                <div className="chart-card-header"><h3 className="chart-title">Match Wins</h3></div>
+                <div className="chart-card-header"><h3 className="chart-title">Match Wins (1 Pts / Win)</h3></div>
                 <canvas ref={el=>{ if(el && teams.length>0) setTimeout(()=>drawStatsChart(el,'wins'),0); }} />
               </div>
             </div>
             {teams.length>0 && (
               <div className="glass-card chart-card">
-                <div className="chart-card-header"><h3 className="chart-title">Team Statistics</h3></div>
+                <div className="chart-card-header"><h3 className="chart-title">Team Standings & Statistics</h3></div>
                 <div className="stats-table-wrap">
                   <table className="stats-table">
-                    <thead><tr><th>Team</th><th>Players</th><th>W</th><th>L</th><th>Sets W</th><th>Sets L</th><th>Pts For</th><th>Pts Vs</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th>Team</th>
+                        <th>Players</th>
+                        <th>Match Pts</th>
+                        <th>Match W</th>
+                        <th>Match L</th>
+                        <th>Games W (Sets)</th>
+                        <th>Games L (Sets)</th>
+                        <th>Pts Scored (Tiebreaker)</th>
+                        <th>Pts Conceded</th>
+                      </tr>
+                    </thead>
                     <tbody>
-                      {teams.map(t=>(
+                      {[...teams].sort((a,b) => {
+                        if (a.stats.wins !== b.stats.wins) return b.stats.wins - a.stats.wins;
+                        if (a.stats.pointsFor !== b.stats.pointsFor) return b.stats.pointsFor - a.stats.pointsFor;
+                        const diffA = a.stats.setsWon - a.stats.setsLost;
+                        const diffB = b.stats.setsWon - b.stats.setsLost;
+                        if (diffA !== diffB) return diffB - diffA;
+                        return (b.stats.pointsFor - b.stats.pointsAgainst) - (a.stats.pointsFor - a.stats.pointsAgainst);
+                      }).map(t=>(
                         <tr key={t.id}>
                           <td><div className="team-cell"><div className="tc-dot" style={{ background:t.color }}></div>{t.name}</div></td>
                           <td>{t.players.length}</td>
+                          <td><strong style={{ color: 'var(--orange)' }}>{t.stats.wins * 1} pts</strong></td>
                           <td>{t.stats.wins}</td><td>{t.stats.losses}</td>
                           <td>{t.stats.setsWon}</td><td>{t.stats.setsLost}</td>
-                          <td>{t.stats.pointsFor}</td><td>{t.stats.pointsAgainst}</td>
+                          <td><strong style={{ color: '#fff' }}>{t.stats.pointsFor}</strong></td><td>{t.stats.pointsAgainst}</td>
                         </tr>
                       ))}
                     </tbody>
