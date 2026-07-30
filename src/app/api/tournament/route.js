@@ -12,11 +12,11 @@ export async function GET() {
     // Spectator mode: load the first tournament in the system
     const t = await prisma.vBTournament.findFirst();
     if (t) return NextResponse.json(t);
-    return NextResponse.json({ started: false, bracketJson: null, activeMatchId: null, champion: null, gfResetId: null, setTargetPoints: 21, set3TargetPoints: 15 });
+    return NextResponse.json({ started: false, bracketJson: null, activeMatchId: null, champion: null, gfResetId: null, setTargetPoints: 21, set3TargetPoints: 15, pointSystem: 'match_win' });
   }
 
   const t = await prisma.vBTournament.findUnique({ where: { userId } });
-  return NextResponse.json(t ?? { started: false, bracketJson: null, activeMatchId: null, champion: null, gfResetId: null, setTargetPoints: 21, set3TargetPoints: 15 });
+  return NextResponse.json(t ?? { started: false, bracketJson: null, activeMatchId: null, champion: null, gfResetId: null, setTargetPoints: 21, set3TargetPoints: 15, pointSystem: 'match_win' });
 }
 
 // PUT /api/tournament — upsert full tournament state
@@ -25,7 +25,7 @@ export async function PUT(req) {
   if (!session?.user?.id) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const body = await req.json();
-  const { started, bracketJson, activeMatchId, champion, gfResetId, setTargetPoints, set3TargetPoints } = body;
+  const { started, bracketJson, activeMatchId, champion, gfResetId, setTargetPoints, set3TargetPoints, pointSystem } = body;
 
   const t = await prisma.vBTournament.upsert({
     where:  { userId: session.user.id },
@@ -37,6 +37,7 @@ export async function PUT(req) {
       gfResetId:    gfResetId != null ? String(gfResetId) : null,
       ...(setTargetPoints !== undefined && { setTargetPoints }),
       ...(set3TargetPoints !== undefined && { set3TargetPoints }),
+      ...(pointSystem !== undefined && { pointSystem }),
     },
     create: {
       userId:       session.user.id,
@@ -47,6 +48,7 @@ export async function PUT(req) {
       gfResetId:    gfResetId != null ? String(gfResetId) : null,
       setTargetPoints: setTargetPoints ?? 21,
       set3TargetPoints: set3TargetPoints ?? 15,
+      pointSystem: pointSystem ?? 'match_win',
     },
   });
   return NextResponse.json(t);

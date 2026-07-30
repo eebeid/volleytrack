@@ -50,7 +50,7 @@ export default function Home() {
   const [view,        setView]        = useState('home');
   const [profile,     setProfile]     = useState({ name:'', avatarDataUrl:'' });
   const [teams,       setTeams]       = useState([]);
-  const [tournament,  setTournament]  = useState({ started:false, bracketJson:null, activeMatchId:null, champion:null, gfResetId:null, setTargetPoints:21, set3TargetPoints:15 });
+  const [tournament,  setTournament]  = useState({ started:false, bracketJson:null, activeMatchId:null, champion:null, gfResetId:null, setTargetPoints:21, set3TargetPoints:15, pointSystem:'match_win' });
   const [tournamentFormat, setTournamentFormat] = useState('double_elimination');
   const [toast,       setToast]       = useState({ msg:'', type:'', show:false });
   const [modal,       setModal]       = useState(null);   // current open modal id
@@ -652,7 +652,7 @@ export default function Home() {
       await apiFetch('/api/tournament', { method:'DELETE' });
       const resetTeams = teams.map(t => ({ ...t, stats: emptyStats() }));
       setTeams(resetTeams);
-      setTournament({ started:false, bracketJson:null, activeMatchId:null, champion:null, gfResetId:null, setTargetPoints: tournament.setTargetPoints, set3TargetPoints: tournament.set3TargetPoints });
+      setTournament({ started:false, bracketJson:null, activeMatchId:null, champion:null, gfResetId:null, setTargetPoints: tournament.setTargetPoints, set3TargetPoints: tournament.set3TargetPoints, pointSystem: tournament.pointSystem || 'match_win' });
       setModal(null);
       showToast('Tournament reset','info');
     } catch(e) { showToast(e.message,'error'); }
@@ -1777,40 +1777,54 @@ export default function Home() {
             </div>
             {teams.length>0 && (
               <div className="glass-card chart-card">
-                <div className="chart-card-header"><h3 className="chart-title">Team Standings & Statistics</h3></div>
+                <div className="chart-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h3 className="chart-title">Team Standings & Statistics</h3>
+                  <div style={{ fontSize: '.78rem', color: 'var(--orange)', background: 'rgba(249,115,22,0.1)', padding: '.25rem .6rem', borderRadius: '6px', border: '1px solid rgba(249,115,22,0.2)' }}>
+                    System: {tournament.pointSystem === 'game_win' ? '1 Pt / Game (Set) Won' : tournament.pointSystem === 'total_points' ? 'Total Points Scored' : '1 Pt / Match Won'}
+                  </div>
+                </div>
                 <div className="stats-table-wrap">
                   <table className="stats-table">
                     <thead>
                       <tr>
                         <th>Team</th>
                         <th>Players</th>
-                        <th>Match Pts</th>
+                        <th>Standings Pts</th>
                         <th>Match W</th>
                         <th>Match L</th>
                         <th>Games W (Sets)</th>
                         <th>Games L (Sets)</th>
-                        <th>Pts Scored (Tiebreaker)</th>
+                        <th>Pts Scored</th>
                         <th>Pts Conceded</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {[...teams].sort((a,b) => {
-                        if (a.stats.wins !== b.stats.wins) return b.stats.wins - a.stats.wins;
-                        if (a.stats.pointsFor !== b.stats.pointsFor) return b.stats.pointsFor - a.stats.pointsFor;
-                        const diffA = a.stats.setsWon - a.stats.setsLost;
-                        const diffB = b.stats.setsWon - b.stats.setsLost;
-                        if (diffA !== diffB) return diffB - diffA;
-                        return (b.stats.pointsFor - b.stats.pointsAgainst) - (a.stats.pointsFor - a.stats.pointsAgainst);
-                      }).map(t=>(
-                        <tr key={t.id}>
-                          <td><div className="team-cell"><div className="tc-dot" style={{ background:t.color }}></div>{t.name}</div></td>
-                          <td>{t.players.length}</td>
-                          <td><strong style={{ color: 'var(--orange)' }}>{t.stats.wins * 1} pts</strong></td>
-                          <td>{t.stats.wins}</td><td>{t.stats.losses}</td>
-                          <td>{t.stats.setsWon}</td><td>{t.stats.setsLost}</td>
-                          <td><strong style={{ color: '#fff' }}>{t.stats.pointsFor}</strong></td><td>{t.stats.pointsAgainst}</td>
-                        </tr>
-                      ))}
+                      {(() => {
+                        const getPts = t => {
+                          if (tournament.pointSystem === 'game_win') return t.stats.setsWon;
+                          if (tournament.pointSystem === 'total_points') return t.stats.pointsFor;
+                          return t.stats.wins; // match_win default
+                        };
+
+                        return [...teams].sort((a,b) => {
+                          const ptsA = getPts(a), ptsB = getPts(b);
+                          if (ptsA !== ptsB) return ptsB - ptsA;
+                          if (a.stats.pointsFor !== b.stats.pointsFor) return b.stats.pointsFor - a.stats.pointsFor;
+                          const diffA = a.stats.setsWon - a.stats.setsLost;
+                          const diffB = b.stats.setsWon - b.stats.setsLost;
+                          if (diffA !== diffB) return diffB - diffA;
+                          return (b.stats.pointsFor - b.stats.pointsAgainst) - (a.stats.pointsFor - a.stats.pointsAgainst);
+                        }).map(t=>(
+                          <tr key={t.id}>
+                            <td><div className="team-cell"><div className="tc-dot" style={{ background:t.color }}></div>{t.name}</div></td>
+                            <td>{t.players.length}</td>
+                            <td><strong style={{ color: 'var(--orange)', fontSize: '1.05rem' }}>{getPts(t)} pts</strong></td>
+                            <td>{t.stats.wins}</td><td>{t.stats.losses}</td>
+                            <td>{t.stats.setsWon}</td><td>{t.stats.setsLost}</td>
+                            <td><strong style={{ color: '#fff' }}>{t.stats.pointsFor}</strong></td><td>{t.stats.pointsAgainst}</td>
+                          </tr>
+                        ));
+                      })()}
                     </tbody>
                   </table>
                 </div>
@@ -2116,17 +2130,43 @@ export default function Home() {
               
               {/* Game Length Settings */}
               <div className="glass-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--orange)', margin: 0 }}>🏐 Game Length Settings</h3>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--orange)', margin: 0 }}>🏐 Game Length & Scoring Settings</h3>
                 <p style={{ fontSize: '.85rem', color: 'var(--text-2)', lineHeight: 1.5, margin: 0 }}>
-                  Adjust target points so that gameplay fits your schedule (e.g. 10:00 AM – 6:00 PM).
+                  Configure how tournament standings points are awarded and adjust target points for sets.
                 </p>
+
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ fontSize: '.78rem' }}>Standings Point System</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '.5rem', marginTop: '.35rem' }}>
+                    {[
+                      { id: 'match_win', label: '🏆 1 Point per Match Won', desc: '1 pt awarded for winning the overall match.' },
+                      { id: 'game_win',  label: '🏐 1 Point per Game (Set) Won', desc: '1 pt awarded for each individual set won.' },
+                      { id: 'total_points', label: '📊 Total Points Scored', desc: 'Points scored in all games count directly as standing points.' }
+                    ].map(sys => (
+                      <button
+                        key={sys.id}
+                        className={`btn ${tournament.pointSystem === sys.id ? 'btn-primary' : 'btn-secondary'}`}
+                        style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', padding: '.6rem .9rem' }}
+                        onClick={async () => {
+                          const newTourn = { ...tournament, pointSystem: sys.id };
+                          setTournament(newTourn);
+                          await saveTournament(newTourn);
+                          showToast(`Point system updated to: ${sys.label}`, 'success');
+                        }}
+                      >
+                        <span style={{ fontWeight: 800, fontSize: '.85rem' }}>{sys.label}</span>
+                        <span style={{ fontSize: '.72rem', opacity: 0.7, marginTop: '.1rem' }}>{sys.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
 
                 {tournament.started ? (
                   <div style={{ padding: '.75rem', background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '.85rem', color: 'var(--text-2)' }}>
-                    ⚠️ Game length settings cannot be changed while a tournament is in progress. Reset the tournament to change these settings.
+                    ⚠️ Set target point settings cannot be changed while a tournament is in progress. Reset the tournament to change target points.
                   </div>
                 ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '.5rem' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label className="form-label" style={{ fontSize: '.78rem' }}>Sets 1 & 2 Target</label>
                       <div style={{ display: 'flex', gap: '.5rem', marginTop: '.35rem' }}>
