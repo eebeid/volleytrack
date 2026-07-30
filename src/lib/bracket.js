@@ -232,6 +232,11 @@ export function generateRoundRobinBracket(teamIds) {
 }
 
 export function propagate(matches, format = 'double_elimination', teamIds = []) {
+  const matchMap = new Map();
+  for (let i = 0; i < matches.length; i++) {
+    matchMap.set(matches[i].id, matches[i]);
+  }
+
   let changed = true;
   let passes  = 0;
   while (changed && passes < 30) {
@@ -242,12 +247,14 @@ export function propagate(matches, format = 'double_elimination', teamIds = []) 
       const prev1 = m.team1, prev2 = m.team2;
 
       if (m.feedWinners) {
-        const [f1, f2] = m.feedWinners.map(id => matches.find(x => x.id === id));
+        const f1 = matchMap.get(m.feedWinners[0]);
+        const f2 = matchMap.get(m.feedWinners[1]);
         if (f1?.winner && !m.team1) m.team1 = f1.winner;
         if (f2?.winner && !m.team2) m.team2 = f2.winner;
       }
       if (m.feedLosers) {
-        const [f1, f2] = m.feedLosers.map(id => matches.find(x => x.id === id));
+        const f1 = matchMap.get(m.feedLosers[0]);
+        const f2 = matchMap.get(m.feedLosers[1]);
         if (f1?.complete && !m.team1) m.team1 = f1.loser;
         if (f2?.complete && !m.team2) m.team2 = f2.loser;
         if (m.team1 === null && f1?.complete && m.team2) {
@@ -257,22 +264,22 @@ export function propagate(matches, format = 'double_elimination', teamIds = []) 
         }
       }
       if (m.feedWinner != null) {
-        const prev = matches.find(x => x.id === m.feedWinner);
+        const prev = matchMap.get(m.feedWinner);
         if (prev?.winner && !m.team1) m.team1 = prev.winner;
       }
       if (m.feedLoser != null) {
-        const wbm = matches.find(x => x.id === m.feedLoser);
+        const wbm = matchMap.get(m.feedLoser);
         if (wbm?.complete && !m.team2) m.team2 = wbm.loser;
         if (wbm?.complete && wbm.loser === null && m.team1) {
           m.winner = m.team1; m.loser = null; m.complete = true; changed = true;
         }
       }
       if (m.feedWB != null) {
-        const wb = matches.find(x => x.id === m.feedWB);
+        const wb = matchMap.get(m.feedWB);
         if (wb?.winner && !m.team1) m.team1 = wb.winner;
       }
       if (m.feedLB != null) {
-        const lb = matches.find(x => x.id === m.feedLB);
+        const lb = matchMap.get(m.feedLB);
         if (lb?.winner && !m.team2) m.team2 = lb.winner;
       }
       if (m.team1 !== prev1 || m.team2 !== prev2) changed = true;
