@@ -2373,7 +2373,7 @@ export default function Home() {
                 </p>
 
                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-                  {tournament.started && (
+                  {isAdmin && tournament.started && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%' }}>
                       <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-1)' }}>Reseed Bracket with Existing Teams:</div>
                       <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
