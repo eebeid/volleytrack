@@ -909,7 +909,7 @@ export default function Home() {
           <span className="nav-title" style={{ fontFamily: 'Anton, sans-serif', letterSpacing: '1.5px', fontSize: '1.4rem', textTransform: 'uppercase', color: 'var(--orange)' }}>Bootaleyzee Cup</span>
         </div>
         <div className="nav-tabs">
-          {[['home','🏠','Home'],['dashboard','📊','Scoreboard'],['bracket','🏆','Bracket'],['schedule','📅','Schedule'],['teams','👥','Teams'],['stats','📈','Stats'],['photos','📷','Photos'],['history','📜','History'],['settings','⚙️','Settings']]
+          {[['home','🏠','Home'],['dashboard','📊','Scoreboard'],['bracket','🏆','Bracket'],['schedule','📅','Schedule'],['teams','👥','Teams'],['stats','📈','Stats'],['photos','📷','Photos'],['settings','⚙️','Settings']]
             .filter(([id]) => id !== 'settings' || isAdmin)
             .map(([id,icon,label])=>(
               <button key={id} className={`nav-tab${view===id?' active':''}`} onClick={()=>setView(id)}>
@@ -1836,77 +1836,7 @@ export default function Home() {
         {/* ══════════════════════════════
             SCHEDULE
             ══════════════════════════════ */}
-        {view==='history' && (
-          <div className="view active" style={{ display:'flex',flexDirection:'column',gap:'1.5rem' }}>
-            <div>
-              <h2 style={{ fontSize: '1.75rem', fontWeight: 900, color: 'var(--orange)', margin: 0 }}>📜 Tournament History</h2>
-              <p style={{ fontSize: '.9rem', color: 'var(--text-2)', marginTop: '.25rem' }}>View past champions, standings, and brackets from previous years.</p>
-            </div>
 
-            {archives.length === 0 ? (
-              <div className="glass-card" style={{ padding: '3rem 1.5rem', textAlign: 'center', color: 'var(--text-2)' }}>
-                <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📜</div>
-                <h3 style={{ fontWeight: 800, color: '#fff', fontSize: '1.2rem' }}>No Archived Tournaments</h3>
-                <p style={{ fontSize: '0.85rem', marginTop: '0.25rem', opacity: 0.6 }}>When a tournament is reset, you can choose to archive it here.</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {archives.map(arch => {
-                  const dateStr = new Date(arch.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
-                  return (
-                    <div key={arch.id} className="glass-card" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                        <div>
-                          <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', margin: 0 }}>{arch.name}</h3>
-                          <span style={{ fontSize: '0.78rem', color: 'var(--text-3)', fontWeight: 600 }}>Archived on {dateStr}</span>
-                        </div>
-                        
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.03)', padding: '0.35rem 0.85rem', borderRadius: '50px', border: '1px solid var(--border)' }}>
-                            <span style={{ fontSize: '0.78rem', color: 'var(--text-2)', fontWeight: 600 }}>Winner:</span>
-                            <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: arch.championColor }} />
-                            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--orange)' }}>{arch.championName}</span>
-                          </div>
-                          
-                          <button 
-                            className="btn btn-sm btn-primary" 
-                            onClick={() => {
-                              setSelectedArchive(arch);
-                              setModal('viewArchiveDetail');
-                            }}
-                          >
-                            View details
-                          </button>
-
-                          {isAdmin && (
-                            <button 
-                              className="btn btn-sm btn-danger" 
-                              style={{ padding: '0.35rem 0.75rem', fontSize: '0.78rem' }}
-                              onClick={async () => {
-                                if (window.confirm("Are you sure you want to delete this tournament archive permanently?")) {
-                                  try {
-                                    await apiFetch(`/api/tournament/archive?id=${arch.id}`, { method: 'DELETE' });
-                                    const newArchs = await apiFetch('/api/tournament/archive');
-                                    setArchives(newArchs);
-                                    showToast('Archive deleted', 'info');
-                                  } catch (e) {
-                                    showToast('Delete failed', 'error');
-                                  }
-                                }
-                              }}
-                            >
-                              Delete
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
 
         {view==='photos' && (
           <div className="view active" style={{ display:'flex',flexDirection:'column',gap:'1.5rem' }}>
@@ -2361,6 +2291,76 @@ export default function Home() {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Tournament History */}
+              <div className="glass-card" style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                <div>
+                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--orange)', margin: 0 }}>📜 Tournament History</h3>
+                  <p style={{ fontSize: '.85rem', color: 'var(--text-2)', marginTop: '.25rem' }}>View past champions, standings, and brackets from previous years.</p>
+                </div>
+
+                {archives.length === 0 ? (
+                  <p style={{ fontSize: '.85rem', color: 'var(--text-3)', margin: 0 }}>
+                    No archived tournaments recorded yet. When a tournament is reset, you can archive it.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {archives.map(arch => {
+                      const dateStr = new Date(arch.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                      return (
+                        <div key={arch.id} style={{ padding: '1rem', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                            <div>
+                              <h4 style={{ fontSize: '1rem', fontWeight: 800, color: '#fff', margin: 0 }}>{arch.name}</h4>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-3)' }}>Archived on {dateStr}</span>
+                            </div>
+                            
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(0,0,0,0.2)', padding: '0.25rem 0.65rem', borderRadius: '50px', border: '1px solid var(--border)' }}>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-2)' }}>Winner:</span>
+                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: arch.championColor }} />
+                                <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--orange)' }}>{arch.championName}</span>
+                              </div>
+                              
+                              <button 
+                                className="btn btn-sm btn-primary" 
+                                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                                onClick={() => {
+                                  setSelectedArchive(arch);
+                                  setModal('viewArchiveDetail');
+                                }}
+                              >
+                                View details
+                              </button>
+
+                              {isAdmin && (
+                                <button 
+                                  className="btn btn-sm btn-danger" 
+                                  style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+                                  onClick={async () => {
+                                    if (window.confirm("Are you sure you want to delete this tournament archive permanently?")) {
+                                      try {
+                                        await apiFetch(`/api/tournament/archive?id=${arch.id}`, { method: 'DELETE' });
+                                        const newArchs = await apiFetch('/api/tournament/archive');
+                                        setArchives(newArchs);
+                                        showToast('Archive deleted', 'info');
+                                      } catch (e) {
+                                        showToast('Delete failed', 'error');
+                                      }
+                                    }
+                                  }}
+                                >
+                                  Delete
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
