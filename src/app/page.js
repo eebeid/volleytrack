@@ -2241,7 +2241,7 @@ export default function Home() {
                     <label className="form-label" style={{ fontSize: '.78rem' }}>Match Duration</label>
                     <select
                       className="form-input"
-                      style={{ marginTop: '.35rem', background: '#0d1530', color: '#f0f4ff', border: '1px solid rgba(255,255,255,0.12)', height: '42px', padding: '0 0.75rem', borderRadius: '8px' }}
+                      style={{ marginTop: '.35rem', background: '#0a1f17', color: '#ffffff', border: '1px solid var(--border)', height: '42px', padding: '0 0.75rem', borderRadius: '8px' }}
                       value={bracket?.matchDuration || 25}
                       disabled={!tournament.started}
                       onChange={async (e) => {
