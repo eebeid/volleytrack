@@ -81,6 +81,10 @@ export default function Home() {
   /* Auto Populate state */
   const [autoTeamCount,   setAutoTeamCount]   = useState(8);
 
+  /* Edit Score Direct state */
+  const [editingScoreTeam, setEditingScoreTeam] = useState(null); // 0 or 1
+  const [editingScoreValue, setEditingScoreValue] = useState('');
+
   /* GF Reset */
   const [gfResetInfo, setGfResetInfo] = useState(null);
   /* Match result */
@@ -677,6 +681,101 @@ export default function Home() {
   };
 
   /* ── Scoring ── */
+  const setDirectScore = async (teamIdx, exactScore) => {
+    const match = getActiveMatch();
+    if (!match || match.complete) return;
+    const scoreVal = Math.max(0, parseInt(exactScore, 10) || 0);
+
+    const newMatches = allMatches.map(m => m.id !== match.id ? m : (() => {
+      const nm = { ...m, sets:[...m.sets.map(s=>({...s}))], setsWon:[...m.setsWon] };
+      if (!nm.sets[nm.currentSet]) nm.sets[nm.currentSet] = { t1:0, t2:0 };
+      const set = { ...nm.sets[nm.currentSet] };
+      if (teamIdx===0) set.t1 = scoreVal;
+      else             set.t2 = scoreVal;
+      nm.sets[nm.currentSet] = set;
+
+      const isS3  = nm.currentSet === 2;
+      const tgt   = isS3 ? (tournament.set3TargetPoints || 15) : (tournament.setTargetPoints || 21);
+      const t1=set.t1, t2=set.t2;
+      let sw = null;
+      if (t1>=tgt && t1-t2>=WIN_BY) sw=0;
+      else if (t2>=tgt && t2-t1>=WIN_BY) sw=1;
+
+      if (sw !== null) {
+        nm.setsWon[sw]++;
+        if (nm.setsWon[sw] >= SETS_TO_WIN) {
+          nm.complete  = true;
+          nm.winner    = sw===0 ? nm.team1 : nm.team2;
+          nm.loser     = sw===0 ? nm.team2 : nm.team1;
+        } else {
+          nm.currentSet++;
+          if (!nm.sets[nm.currentSet]) nm.sets[nm.currentSet] = { t1:0, t2:0 };
+        }
+      }
+      return nm;
+    })());
+
+    propagate(newMatches, bracket?.format, teams.map(t => t.id));
+
+    const completedMatch = newMatches.find(m => m.id === match.id);
+    let newTourn = { ...tournament, bracketJson:{ ...bracket, matches:newMatches }, activeMatchId: completedMatch?.complete ? null : tournament.activeMatchId };
+
+    if (completedMatch?.complete) {
+      const wId = completedMatch.winner, lId = completedMatch.loser;
+      const updatedTeams = teams.map(t => {
+        if (t.id === wId) {
+          let wPts=0, lPts=0;
+          completedMatch.sets.forEach(s => { wPts += wId===completedMatch.team1?s.t1:s.t2; lPts += lId===completedMatch.team1?s.t1:s.t2; });
+          const sW = wId === completedMatch.team1 ? completedMatch.setsWon[0] : completedMatch.setsWon[1];
+          const sL = wId === completedMatch.team1 ? completedMatch.setsWon[1] : completedMatch.setsWon[0];
+          const ns = { ...t.stats, wins: t.stats.wins + 1, pointsFor: t.stats.pointsFor + wPts, pointsAgainst: t.stats.pointsAgainst + lPts, setsWon: t.stats.setsWon + sW, setsLost: t.stats.setsLost + sL };
+          saveTeamStats(t.id, ns);
+          return { ...t, stats: ns };
+        }
+        if (t.id === lId) {
+          let wPts=0, lPts=0;
+          completedMatch.sets.forEach(s => { wPts += wId===completedMatch.team1?s.t1:s.t2; lPts += lId===completedMatch.team1?s.t1:s.t2; });
+          const sW = lId === completedMatch.team1 ? completedMatch.setsWon[0] : completedMatch.setsWon[1];
+          const sL = lId === completedMatch.team1 ? completedMatch.setsWon[1] : completedMatch.setsWon[0];
+          const ns = { ...t.stats, losses: t.stats.losses + 1, pointsFor: t.stats.pointsFor + lPts, pointsAgainst: t.stats.pointsAgainst + wPts, setsWon: t.stats.setsWon + sW, setsLost: t.stats.setsLost + sL };
+          saveTeamStats(t.id, ns);
+          return { ...t, stats: ns };
+        }
+        return t;
+      });
+      setTeams(updatedTeams);
+
+      const gfId = bracket.gfId;
+      if (completedMatch.id === gfId) {
+        const gf = newMatches.find(m => m.id === gfId);
+        const wbChamp = gf.team1, lbChamp = gf.team2;
+        if (completedMatch.winner === lbChamp) {
+          const resetMatch = {
+            id: Date.now(), bracket:'GFR', round:1,
+            team1: wbChamp, team2: lbChamp,
+            sets:[], currentSet:0, setsWon:[0,0],
+            winner:null, loser:null, complete:false,
+            feedWinners:null, feedLosers:null, feedWinner:null, feedLoser:null, feedWB:null, feedLB:null,
+          };
+          newTourn.bracketJson.matches.push(resetMatch);
+          newTourn.gfResetId = resetMatch.id;
+          setGfResetInfo({ t1: updatedTeams.find(t=>t.id===wbChamp), t2: updatedTeams.find(t=>t.id===lbChamp), matchId: resetMatch.id });
+          setModal('gfReset');
+        } else {
+          newTourn.champion = completedMatch.winner;
+        }
+      } else if (tournament.gfResetId && completedMatch.id === tournament.gfResetId) {
+        newTourn.champion = completedMatch.winner;
+      }
+
+      setMatchResult({ match: completedMatch, winnerName: teams.find(t=>t.id===completedMatch.winner)?.name, loserName: teams.find(t=>t.id===completedMatch.loser)?.name });
+      setModal('matchResult');
+    }
+
+    setTournament(newTourn);
+    await saveTournament(newTourn, completedMatch?.complete);
+  };
+
   const adjustScore = async (teamIdx, delta) => {
     const match = getActiveMatch();
     if (!match || match.complete) return;
@@ -1435,7 +1534,49 @@ export default function Home() {
                       <div className={`set-pip${match.setsWon[0]>0?' won':''}`}/>
                       <div className={`set-pip${match.setsWon[0]>1?' won':''}`}/>
                     </div>
-                    <div id="score1" className="score-big">{set.t1}</div>
+                    {isAdmin && editingScoreTeam === 0 ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', margin: '0.5rem 0' }}>
+                        <input
+                          type="number"
+                          className="form-input"
+                          style={{ width: '90px', fontSize: '2rem', textAlign: 'center', fontWeight: 900, height: '60px', padding: '0.2rem' }}
+                          value={editingScoreValue}
+                          autoFocus
+                          onChange={(e) => setEditingScoreValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              setDirectScore(0, editingScoreValue);
+                              setEditingScoreTeam(null);
+                            } else if (e.key === 'Escape') {
+                              setEditingScoreTeam(null);
+                            }
+                          }}
+                        />
+                        <button
+                          className="btn btn-sm btn-primary"
+                          style={{ height: '40px', padding: '0 0.6rem' }}
+                          onClick={() => {
+                            setDirectScore(0, editingScoreValue);
+                            setEditingScoreTeam(null);
+                          }}
+                        >
+                          ✓
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        id="score1"
+                        className="score-big"
+                        style={{ cursor: isAdmin ? 'pointer' : 'default' }}
+                        title={isAdmin ? 'Click to edit score directly' : ''}
+                        onClick={isAdmin ? () => {
+                          setEditingScoreTeam(0);
+                          setEditingScoreValue(String(set.t1));
+                        } : undefined}
+                      >
+                        {set.t1}
+                      </div>
+                    )}
                     {isAdmin && (
                       <div className="score-btns">
                         <button className="sbtn minus" onClick={()=>adjustScore(0,-1)}>−</button>
@@ -1480,7 +1621,49 @@ export default function Home() {
                       <div className={`set-pip${match.setsWon[1]>0?' won':''}`}/>
                       <div className={`set-pip${match.setsWon[1]>1?' won':''}`}/>
                     </div>
-                    <div id="score2" className="score-big">{set.t2}</div>
+                    {isAdmin && editingScoreTeam === 1 ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', margin: '0.5rem 0' }}>
+                        <input
+                          type="number"
+                          className="form-input"
+                          style={{ width: '90px', fontSize: '2rem', textAlign: 'center', fontWeight: 900, height: '60px', padding: '0.2rem' }}
+                          value={editingScoreValue}
+                          autoFocus
+                          onChange={(e) => setEditingScoreValue(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              setDirectScore(1, editingScoreValue);
+                              setEditingScoreTeam(null);
+                            } else if (e.key === 'Escape') {
+                              setEditingScoreTeam(null);
+                            }
+                          }}
+                        />
+                        <button
+                          className="btn btn-sm btn-primary"
+                          style={{ height: '40px', padding: '0 0.6rem' }}
+                          onClick={() => {
+                            setDirectScore(1, editingScoreValue);
+                            setEditingScoreTeam(null);
+                          }}
+                        >
+                          ✓
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        id="score2"
+                        className="score-big"
+                        style={{ cursor: isAdmin ? 'pointer' : 'default' }}
+                        title={isAdmin ? 'Click to edit score directly' : ''}
+                        onClick={isAdmin ? () => {
+                          setEditingScoreTeam(1);
+                          setEditingScoreValue(String(set.t2));
+                        } : undefined}
+                      >
+                        {set.t2}
+                      </div>
+                    )}
                     {isAdmin && (
                       <div className="score-btns">
                         <button className="sbtn minus" onClick={()=>adjustScore(1,-1)}>−</button>
