@@ -24,7 +24,7 @@ function matchLabel(m) {
   if (m.bracket==='3P')  return '🥉 3rd Place Match';
   if (m.bracket==='GF')  return '🏆 Grand Final';
   if (m.bracket==='GFR') return '🔥 Grand Final Reset';
-  return `${m.bracket==='W'?'Winners':'Losers'} Bracket · Round ${m.round}`;
+  return `${m.bracket==='W'?'Winners':'Redemption'} Bracket · Round ${m.round}`;
 }
 
 
@@ -1516,7 +1516,7 @@ export default function Home() {
                 {bracket?.format !== 'round_robin' && (
                   <div className="bracket-legend">
                     <span className="leg winners">Winners</span>
-                    <span className="leg losers">Losers</span>
+                    <span className="leg losers">Redemption</span>
                     <span className="leg gf">Grand Final</span>
                   </div>
                 )}
@@ -1581,8 +1581,8 @@ export default function Home() {
                     <>
                       {/* Winners */}
                       {wb.length>0 && <BracketSection title="Winners Bracket" labelClass="wb" rounds={wb} matchClass="wb-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />}
-                      {/* Losers */}
-                      {lb.length>0 && <BracketSection title="Losers Bracket"  labelClass="lb" rounds={lb} matchClass="lb-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />}
+                      {/* Redemption */}
+                      {lb.length>0 && <BracketSection title="Redemption Bracket"  labelClass="lb" rounds={lb} matchClass="lb-match" activeId={tournament.activeMatchId} onSelect={selectMatch} teams={teams} />}
                       {/* GF */}
                       {gf && (
                         <div className="bracket-section">
