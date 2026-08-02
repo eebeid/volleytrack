@@ -476,17 +476,18 @@ export default function Home() {
           }
         });
 
-        // Re-propagate bracket outcomes
+        // Re-propagate bracket outcomes to seed Grand Final and 3rd Place Match
         propagate(newBracket.matches, fmt, teams.map(t => t.id));
       }
 
-      const champObj = [...teams].sort((a,b) => b.stats.wins - a.stats.wins || b.stats.pointsFor - a.stats.pointsFor)[0];
+      const gfMatch = newBracket.matches.find(m => m.bracket === 'GF');
+      const championId = gfMatch?.complete ? gfMatch.winner : null;
 
       const newTourn = {
         started: true,
         bracketJson: newBracket,
         activeMatchId: null,
-        champion: activeTeams.length > 0 ? (champObj?.id || null) : null,
+        champion: championId,
         gfResetId: null,
         setTargetPoints: tournament.setTargetPoints || 21,
         set3TargetPoints: tournament.set3TargetPoints || 15,
@@ -2672,16 +2673,33 @@ export default function Home() {
                   {isAdmin && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
                       <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-1)' }}>Data Recovery Tools:</div>
-                      <button 
-                        className="btn btn-secondary"
-                        onClick={async () => {
-                          if (window.confirm("Rebuild tournament bracket and matches from stored team stats?")) {
-                            await rebuildTournamentFromStats();
-                          }
-                        }}
-                      >
-                        🔄 Rebuild Tournament & Bracket from Stats
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <button 
+                          className="btn btn-primary"
+                          onClick={async () => {
+                            const newTourn = {
+                              ...tournament,
+                              champion: null
+                            };
+                            setTournament(newTourn);
+                            await saveTournament(newTourn, true);
+                            showToast('Tournament reactivated! Playoff and 3rd place matches unlocked. 🏐', 'success');
+                            setView('bracket');
+                          }}
+                        >
+                          🔓 Reactivate Tournament (Unlock Playoff & 3rd Place Match)
+                        </button>
+                        <button 
+                          className="btn btn-secondary"
+                          onClick={async () => {
+                            if (window.confirm("Rebuild tournament bracket and matches from stored team stats?")) {
+                              await rebuildTournamentFromStats();
+                            }
+                          }}
+                        >
+                          🔄 Rebuild Bracket from Stats
+                        </button>
+                      </div>
                     </div>
                   )}
 
