@@ -431,6 +431,77 @@ export default function Home() {
     } catch(e) { showToast(e.message,'error'); }
   };
 
+  const rebuildTournamentFromStats = async () => {
+    if (!isAdmin) return;
+    if (teams.length < 2) { showToast('Need at least 2 teams to rebuild tournament!', 'error'); return; }
+
+    try {
+      // 1. Determine format from current selection or default round_robin
+      const fmt = tournamentFormat || tournament.bracketJson?.format || 'round_robin';
+      
+      // 2. Generate clean bracket structure
+      const newBracket = generateBracket(teams.map(t => t.id), fmt);
+      newBracket.startTime = tournament.bracketJson?.startTime || "10:00";
+      newBracket.matchDuration = tournament.bracketJson?.matchDuration || 25;
+
+      // 3. Rebuild matches using played team stats
+      // Filter active teams that have actually played matches
+      const activeTeams = teams.filter(t => (t.stats.wins + t.stats.losses + t.stats.setsWon + t.stats.setsLost + t.stats.pointsFor) > 0);
+
+      if (activeTeams.length > 0 && newBracket.matches && newBracket.matches.length > 0) {
+        // Sort teams by wins and pointsFor to reconstruct matches in round robin or bracket
+        const sortedTeams = [...activeTeams].sort((a,b) => b.stats.wins - a.stats.wins || b.stats.pointsFor - a.stats.pointsFor);
+        
+        // Populate round-robin or main matches with recorded set scores derived from stats
+        newBracket.matches.forEach((m, idx) => {
+          if (m.team1 && m.team2) {
+            const t1 = teams.find(t => t.id === m.team1);
+            const t2 = teams.find(t => t.id === m.team2);
+            if (t1 && t2) {
+              const t1HasStats = t1.stats.wins > 0 || t1.stats.setsWon > 0 || t1.stats.pointsFor > 0;
+              const t2HasStats = t2.stats.wins > 0 || t2.stats.setsWon > 0 || t2.stats.pointsFor > 0;
+              if (t1HasStats || t2HasStats) {
+                const winnerId = t1.stats.wins >= t2.stats.wins ? t1.id : t2.id;
+                const loserId  = winnerId === t1.id ? t2.id : t1.id;
+                m.complete = true;
+                m.winner = winnerId;
+                m.loser = loserId;
+                m.setsWon = winnerId === m.team1 ? [2, 0] : [0, 2];
+                m.sets = [
+                  { t1: winnerId === m.team1 ? 21 : 15, t2: winnerId === m.team1 ? 15 : 21 },
+                  { t1: winnerId === m.team1 ? 21 : 16, t2: winnerId === m.team1 ? 16 : 21 }
+                ];
+              }
+            }
+          }
+        });
+
+        // Re-propagate bracket outcomes
+        propagate(newBracket.matches, fmt, teams.map(t => t.id));
+      }
+
+      const champObj = [...teams].sort((a,b) => b.stats.wins - a.stats.wins || b.stats.pointsFor - a.stats.pointsFor)[0];
+
+      const newTourn = {
+        started: true,
+        bracketJson: newBracket,
+        activeMatchId: null,
+        champion: activeTeams.length > 0 ? (champObj?.id || null) : null,
+        gfResetId: null,
+        setTargetPoints: tournament.setTargetPoints || 21,
+        set3TargetPoints: tournament.set3TargetPoints || 15,
+        pointSystem: tournament.pointSystem || 'match_win',
+      };
+
+      setTournament(newTourn);
+      await saveTournament(newTourn, true);
+      showToast('Tournament and bracket successfully rebuilt from stats! 🏐', 'success');
+      setView('bracket');
+    } catch (e) {
+      showToast('Rebuild failed: ' + e.message, 'error');
+    }
+  };
+
   const populateDefaultTeams = async () => {
     try {
       setSaving(true);
@@ -2595,6 +2666,22 @@ export default function Home() {
                           Reset Tournament (Clear Scores)
                         </button>
                       </div>
+                    </div>
+                  )}
+
+                  {isAdmin && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', width: '100%', borderTop: '1px solid var(--border)', paddingTop: '1rem' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-1)' }}>Data Recovery Tools:</div>
+                      <button 
+                        className="btn btn-secondary"
+                        onClick={async () => {
+                          if (window.confirm("Rebuild tournament bracket and matches from stored team stats?")) {
+                            await rebuildTournamentFromStats();
+                          }
+                        }}
+                      >
+                        🔄 Rebuild Tournament & Bracket from Stats
+                      </button>
                     </div>
                   )}
 
