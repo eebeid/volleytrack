@@ -929,3 +929,63 @@ canvas{ max-width:100%;display:block; }
   }
 }
 
+/* =============================================
+   PRINT MEDIA STYLES (Printable Bracket)
+   ============================================= */
+@media print {
+  @page {
+    size: landscape;
+    margin: 1cm;
+  }
+  body, html {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  body::before, .nav, .toast, .btn, .modal-overlay, footer {
+    display: none !important;
+  }
+  .main {
+    padding-top: 0 !important;
+  }
+  .view {
+    display: block !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+  .view-title {
+    color: #000000 !important;
+    font-size: 1.5rem !important;
+  }
+  .view-subtitle {
+    color: #555555 !important;
+  }
+  .bracket-container {
+    overflow: visible !important;
+  }
+  .b-match {
+    background: #ffffff !important;
+    border: 1px solid #000000 !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+  }
+  .b-team {
+    border-bottom: 1px solid #cccccc !important;
+    color: #000000 !important;
+  }
+  .b-team span {
+    color: #000000 !important;
+    font-weight: bold !important;
+  }
+  .b-sets {
+    color: #333333 !important;
+    min-width: 30px;
+    display: inline-block;
+    border-left: 1px solid #dddddd;
+    padding-left: 4px;
+  }
+  .bracket-section-label {
+    color: #000000 !important;
+    font-weight: 900 !important;
+  }
+}
+

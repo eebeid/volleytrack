@@ -1511,6 +1511,13 @@ export default function Home() {
                     >
                       🔄 Round Robin
                     </button>
+                    <button
+                      className="btn btn-sm btn-secondary"
+                      onClick={() => window.print()}
+                      title="Print tournament bracket for manual scorekeeping"
+                    >
+                      🖨️ Print Bracket
+                    </button>
                   </div>
                 )}
                 {bracket?.format !== 'round_robin' && (
