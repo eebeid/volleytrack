@@ -107,6 +107,7 @@ export default function Home() {
 
   const liveChartRef = useRef(null);
   const toastTimerRef = useRef(null);
+  const saveTimerRef = useRef(null);
 
   /* ── Toast ── */
   const showToast = useCallback((msg, type='') => {
@@ -161,26 +162,30 @@ export default function Home() {
           gfResetId:    tourn.gfResetId   != null ? Number(tourn.gfResetId) : null,
           setTargetPoints: tourn.setTargetPoints ?? 21,
           set3TargetPoints: tourn.set3TargetPoints ?? 15,
+          pointSystem: tourn.pointSystem ?? 'match_win',
         });
       } catch(e) { showToast('Failed to load data', 'error'); }
       finally { setLoading(false); }
     })();
   }, [status]);
 
-  /* ── Lightweight Spectator Polling Hook ── */
+  /* ── Optimized Spectator Polling Hook (Only fetch tournament state, photos only on photos view) ── */
   useEffect(() => {
     if (isAdmin) return;
     if (!tournament.started || tournament.champion) return;
 
     const interval = setInterval(async () => {
       try {
-        const [ts, tourn, pts] = await Promise.all([
+        const promises = [
           apiFetch('/api/teams'),
-          apiFetch('/api/tournament'),
-          apiFetch('/api/photos').catch(() => [])
-        ]);
+          apiFetch('/api/tournament')
+        ];
+        if (view === 'photos') {
+          promises.push(apiFetch('/api/photos').catch(() => []));
+        }
+        const [ts, tourn, pts] = await Promise.all(promises);
         setTeams(ts.map(t => ({ ...t, stats: t.stats || emptyStats() })));
-        setPhotos(pts);
+        if (pts) setPhotos(pts);
         setTournament(prev => {
           const nextActiveId = tourn.activeMatchId != null ? Number(tourn.activeMatchId) : null;
           const nextGfResetId = tourn.gfResetId != null ? Number(tourn.gfResetId) : null;
@@ -191,7 +196,8 @@ export default function Home() {
             prev.champion !== tourn.champion ||
             prev.gfResetId !== nextGfResetId ||
             prev.setTargetPoints !== tourn.setTargetPoints ||
-            prev.set3TargetPoints !== tourn.set3TargetPoints
+            prev.set3TargetPoints !== tourn.set3TargetPoints ||
+            prev.pointSystem !== tourn.pointSystem
           ) {
             return {
               started:      tourn.started      ?? false,
@@ -201,6 +207,7 @@ export default function Home() {
               gfResetId:    nextGfResetId,
               setTargetPoints: tourn.setTargetPoints ?? 21,
               set3TargetPoints: tourn.set3TargetPoints ?? 15,
+              pointSystem: tourn.pointSystem ?? 'match_win',
             };
           }
           return prev;
@@ -208,27 +215,38 @@ export default function Home() {
       } catch (e) {
         // Silent error handling for background polling
       }
-    }, 8000);
+    }, 6000);
 
     return () => clearInterval(interval);
-  }, [isAdmin, tournament.started, tournament.champion]);
+  }, [isAdmin, tournament.started, tournament.champion, view]);
 
-  /* ── Save tournament to API ── */
-  const saveTournament = useCallback(async (tourn) => {
-    try {
-      await apiFetch('/api/tournament', {
-        method: 'PUT',
-        body: JSON.stringify({
-          started:       tourn.started,
-          bracketJson:   tourn.bracketJson,
-          activeMatchId: tourn.activeMatchId,
-          champion:      tourn.champion,
-          gfResetId:     tourn.gfResetId,
-          setTargetPoints: tourn.setTargetPoints,
-          set3TargetPoints: tourn.set3TargetPoints,
-        }),
-      });
-    } catch(e) { showToast('Save failed', 'error'); }
+  /* ── Save tournament to API (Debounced for fast rapid score clicks) ── */
+  const saveTournament = useCallback(async (tourn, immediate = false) => {
+    const doSave = async () => {
+      try {
+        await apiFetch('/api/tournament', {
+          method: 'PUT',
+          body: JSON.stringify({
+            started:       tourn.started,
+            bracketJson:   tourn.bracketJson,
+            activeMatchId: tourn.activeMatchId,
+            champion:      tourn.champion,
+            gfResetId:     tourn.gfResetId,
+            setTargetPoints: tourn.setTargetPoints,
+            set3TargetPoints: tourn.set3TargetPoints,
+            pointSystem:   tourn.pointSystem,
+          }),
+        });
+      } catch(e) { showToast('Save failed', 'error'); }
+    };
+
+    if (immediate) {
+      clearTimeout(saveTimerRef.current);
+      await doSave();
+    } else {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(doSave, 300);
+    }
   }, []);
 
   /* ── Save team stats ── */
@@ -768,7 +786,7 @@ export default function Home() {
     }
 
     setTournament(newTourn);
-    await saveTournament(newTourn);
+    await saveTournament(newTourn, completedMatch?.complete);
   };
 
   const selectMatch = async (matchId) => {
