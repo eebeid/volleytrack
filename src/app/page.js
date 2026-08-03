@@ -473,9 +473,13 @@ export default function Home() {
                 m.winner = winnerId;
                 m.loser = loserId;
                 m.setsWon = winnerId === m.team1 ? [2, 0] : [0, 2];
+
+                // Generate realistic varied set scores based on match index and team points
+                const set1L = 12 + ((idx * 3) % 7); // 12-18
+                const set2L = 14 + ((idx * 5) % 6); // 14-19
                 m.sets = [
-                  { t1: winnerId === m.team1 ? 21 : 15, t2: winnerId === m.team1 ? 15 : 21 },
-                  { t1: winnerId === m.team1 ? 21 : 16, t2: winnerId === m.team1 ? 16 : 21 }
+                  { t1: winnerId === m.team1 ? 21 : set1L, t2: winnerId === m.team1 ? set1L : 21 },
+                  { t1: winnerId === m.team1 ? 21 : set2L, t2: winnerId === m.team1 ? set2L : 21 }
                 ];
               }
             }
