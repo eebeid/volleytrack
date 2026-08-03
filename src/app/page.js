@@ -224,31 +224,37 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [isAdmin, tournament.started, tournament.champion, view]);
 
-  /* ── Save tournament to API (Debounced for fast rapid score clicks) ── */
+  /* ── Keep latest tournament in a ref for async save operations ── */
+  const tournamentRef = useRef(tournament);
+  useEffect(() => {
+    tournamentRef.current = tournament;
+  }, [tournament]);
+
+  /* ── Save tournament to API ── */
   const saveTournament = useCallback(async (tourn, immediate = false) => {
+    const targetTourn = tourn || tournamentRef.current;
     const doSave = async () => {
       try {
         await apiFetch('/api/tournament', {
           method: 'PUT',
           body: JSON.stringify({
-            started:       tourn.started,
-            bracketJson:   tourn.bracketJson,
-            activeMatchId: tourn.activeMatchId,
-            champion:      tourn.champion,
-            gfResetId:     tourn.gfResetId,
-            setTargetPoints: tourn.setTargetPoints,
-            set3TargetPoints: tourn.set3TargetPoints,
-            pointSystem:   tourn.pointSystem,
+            started:       targetTourn.started,
+            bracketJson:   targetTourn.bracketJson,
+            activeMatchId: targetTourn.activeMatchId,
+            champion:      targetTourn.champion,
+            gfResetId:     targetTourn.gfResetId,
+            setTargetPoints: targetTourn.setTargetPoints,
+            set3TargetPoints: targetTourn.set3TargetPoints,
+            pointSystem:   targetTourn.pointSystem,
           }),
         });
       } catch(e) { showToast('Save failed', 'error'); }
     };
 
+    clearTimeout(saveTimerRef.current);
     if (immediate) {
-      clearTimeout(saveTimerRef.current);
       await doSave();
     } else {
-      clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(doSave, 300);
     }
   }, []);
@@ -743,6 +749,7 @@ export default function Home() {
 
   const resetTournament = async () => {
     try {
+      clearTimeout(saveTimerRef.current);
       await apiFetch('/api/tournament', { method:'DELETE' });
       const resetTeams = teams.map(t => ({ ...t, stats: emptyStats() }));
       setTeams(resetTeams);
