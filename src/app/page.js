@@ -2120,11 +2120,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* ══════════════════════════════
-            SCHEDULE
-            ══════════════════════════════ */}
-
-
         {view==='photos' && (
           <div className="view active" style={{ display:'flex',flexDirection:'column',gap:'1.5rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
